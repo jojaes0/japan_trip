@@ -237,6 +237,7 @@
     $('list').hidden = state.view !== 'list';
     $('map').hidden = state.view !== 'map';
     if (state.view === 'map') renderMap(items);
+    document.querySelectorAll('.chips').forEach(edges);
     writeHash();
   };
 
@@ -323,6 +324,30 @@
       setStatus(err.code === 1 ? '위치 권한이 꺼져 있어요. 브라우저 설정에서 위치 접근을 허용한 뒤 다시 눌러주세요.' : '현재 위치를 찾지 못했어요. 잠시 후 다시 시도해주세요.');
     }, { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 });
   };
+
+  // ── 칩 줄 가로 스크롤: 터치는 기본 동작, 마우스는 휠·드래그로. 더 있는 쪽 가장자리는 흐리게
+  const edges = (el) => {
+    el.classList.toggle('more-l', el.scrollLeft > 4);
+    el.classList.toggle('more-r', el.scrollLeft + el.clientWidth < el.scrollWidth - 4);
+  };
+  for (const el of document.querySelectorAll('.chips')) {
+    let startX = null, startLeft = 0, dragged = false;
+    el.addEventListener('scroll', () => edges(el), { passive: true });
+    el.addEventListener('wheel', (e) => {
+      if (el.scrollWidth <= el.clientWidth || Math.abs(e.deltaX) > Math.abs(e.deltaY)) return;
+      e.preventDefault();
+      el.scrollLeft += e.deltaY;
+    }, { passive: false });
+    el.addEventListener('pointerdown', (e) => { if (e.pointerType === 'mouse') { startX = e.clientX; startLeft = el.scrollLeft; dragged = false; } });
+    window.addEventListener('pointermove', (e) => {
+      if (startX == null) return;
+      if (Math.abs(e.clientX - startX) > 5) dragged = true;
+      if (dragged) el.scrollLeft = startLeft - (e.clientX - startX);
+    });
+    window.addEventListener('pointerup', () => { startX = null; });
+    el.addEventListener('click', (e) => { if (dragged) { e.stopPropagation(); e.preventDefault(); dragged = false; } }, true); // 드래그 끝의 클릭은 선택으로 치지 않음
+  }
+  window.addEventListener('resize', () => document.querySelectorAll('.chips').forEach(edges));
 
   // ── 이벤트
   $('near').addEventListener('click', locate);

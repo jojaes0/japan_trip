@@ -83,6 +83,9 @@ button:active { transform: scale(.96); }
 
 .chips { display: flex; gap: 6px; overflow-x: auto; scrollbar-width: none; margin: 0 -20px; padding: 0 20px; }
 .chips::-webkit-scrollbar { display: none; }
+.chips { --l: #000; --r: #000; -webkit-mask-image: linear-gradient(90deg, var(--l), #000 44px, #000 calc(100% - 44px), var(--r)); mask-image: linear-gradient(90deg, var(--l), #000 44px, #000 calc(100% - 44px), var(--r)); user-select: none; -webkit-user-select: none; }
+.chips.more-l { --l: transparent; }
+.chips.more-r { --r: transparent; }
 .chips:empty { display: none; }
 .chips button { flex: none; height: 32px; padding: 0 13px; border-radius: 16px; font-size: 14px; font-weight: 500; color: var(--text-2); background: var(--fill); transition: background .2s, color .2s, transform .2s var(--ease); }
 .chips button.on { background: var(--text); color: var(--bg); }
