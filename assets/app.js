@@ -120,7 +120,9 @@
   };
 
   // ── 지도 (처음 열 때만 MapLibre 로드 · OpenFreeMap 벡터 타일 · 지명은 한국어 우선)
-  const DARK = matchMedia('(prefers-color-scheme: dark)').matches; // 지도도 페이지와 같은 모드로
+  // 테마: 우상단 토글로 고른 값이 우선, 없으면 기기 설정. 지도도 같은 모드로
+  const isDark = () => (document.documentElement.dataset.theme || (matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light')) === 'dark';
+  const mapStyle = () => `https://tiles.openfreemap.org/styles/${isDark() ? 'dark' : 'positron'}`;
   let map, markers = [], glReady, legend, here = null, hereMarker, tracking = false;
   const KO_NAME = ['coalesce', ['get', 'name:ko'], ['get', 'name:latin'], ['get', 'name']];
   const loadGL = () => glReady || (glReady = new Promise((ok, fail) => {
@@ -142,7 +144,7 @@
         id: 'stations', type: 'symbol', source: 'openmaptiles', 'source-layer': 'poi', minzoom: 12,
         filter: ['==', ['get', 'class'], 'railway'],
         layout: { 'text-field': KO_NAME, 'text-font': font, 'text-size': 12.5, 'text-padding': 6 },
-        paint: { 'text-color': DARK ? '#8ab4f8' : '#2f5d9e', 'text-halo-color': DARK ? '#111' : '#fff', 'text-halo-width': 1.6 },
+        paint: { 'text-color': isDark() ? '#8ab4f8' : '#2f5d9e', 'text-halo-color': isDark() ? '#111' : '#fff', 'text-halo-width': 1.6 },
       });
     } catch {}
   };
@@ -170,7 +172,7 @@
     try { await loadGL(); } catch { $('map').textContent = '지도를 불러오지 못했어요.'; return; }
     if (!map) {
       map = new maplibregl.Map({
-        container: 'map', style: `https://tiles.openfreemap.org/styles/${DARK ? 'dark' : 'positron'}`,
+        container: 'map', style: mapStyle(),
         center: [135.5, 34.69], zoom: 11, dragRotate: false, pitchWithRotate: false,
         localIdeographFontFamily: '"Pretendard Variable", "Apple SD Gothic Neo", "Malgun Gothic", sans-serif',
       });
@@ -356,6 +358,13 @@
   window.addEventListener('resize', () => document.querySelectorAll('.chips').forEach(edges));
 
   // ── 이벤트
+  $('theme').addEventListener('click', () => {
+    const next = isDark() ? 'light' : 'dark';
+    document.documentElement.dataset.theme = next;
+    try { localStorage.setItem('jt-theme', next); } catch {}
+    syncThemeColor();
+    if (map) map.setStyle(mapStyle()); // style.load 에서 한국어 지명·역 이름을 다시 입힘
+  });
   $('near').addEventListener('click', locate);
   $('q').addEventListener('input', (e) => { state.q = e.target.value; render(); });
   $('cities').addEventListener('click', (e) => { const b = e.target.closest('button'); if (b) { state.city = b.dataset.city; state.area = ''; render(); } });
@@ -380,7 +389,12 @@
   window.addEventListener('hashchange', () => { readHash(); render(); if (state.p) openSheet(state.p); });
   new IntersectionObserver(([en]) => $('bar').classList.toggle('stuck', en.intersectionRatio < 1), { threshold: [1], rootMargin: '-1px 0px 0px 0px' }).observe($('bar'));
 
+  const syncThemeColor = () => document.querySelector('meta[name="theme-color"]').setAttribute('content', isDark() ? '#000000' : '#ffffff');
+  // 지역 제목이 붙을 위치 = 상단 고정 영역의 실제 높이
+  new ResizeObserver(() => document.documentElement.style.setProperty('--bar-h', $('bar').offsetHeight + 'px')).observe($('bar'));
+
   // ── 시작
+  syncThemeColor();
   $('total').textContent = `${uniq(PLACES.map((p) => p.city)).join(' · ')}, ${PLACES.length}곳.`;
   readHash();
   render();
