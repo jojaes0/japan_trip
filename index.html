@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>일본 여행 정보</title>
+<meta name="description" content="직접 가보고 좋았던 일본의 음식점, 쇼핑, 숙소를 나만의 팁과 함께 모았습니다.">
+<meta property="og:title" content="일본 여행 정보">
+<meta property="og:description" content="직접 가보고 좋았던 곳만, 나만의 팁과 함께.">
+<meta name="theme-color" content="#ffffff" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#000000" media="(prefers-color-scheme: dark)">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='15' fill='%23fff'/%3E%3Ccircle cx='32' cy='32' r='15' fill='%23d9412b'/%3E%3C/svg%3E">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css">
+<link rel="stylesheet" href="assets/style.css">
+</head>
+<body>
+
+<header class="hero">
+  <p class="eyebrow">Japan, saved.</p>
+  <h1>일본 여행 정보</h1>
+  <p class="lede">직접 가보고 좋았던 곳만. <span id="total"></span></p>
+</header>
+
+<div class="bar" id="bar">
+  <div class="bar-inner">
+    <div class="row">
+      <label class="search">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="6.5"/><path d="m16 16 4.5 4.5"/></svg>
+        <input id="q" type="search" placeholder="이름, 메뉴, 팁 검색" autocomplete="off">
+      </label>
+      <button class="near" id="near" type="button" aria-pressed="false">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20.5 3.5 3.8 10.6c-.5.2-.4.9.1 1l6.3 1.9 1.9 6.3c.1.5.8.6 1 .1z"/></svg>
+        <span>내 주변</span>
+      </button>
+    </div>
+    <div class="seg" id="cities" role="tablist"></div>
+    <div class="chips" id="areas"></div>
+    <div class="chips" id="types"></div>
+  </div>
+</div>
+
+<main>
+  <p class="status" id="status" hidden></p>
+  <div class="viewhead">
+    <span id="count"></span>
+    <div class="toggle" id="view">
+      <button type="button" data-v="list" class="on">목록</button>
+      <button type="button" data-v="map">지도</button>
+    </div>
+  </div>
+  <div id="list"></div>
+  <div id="map" hidden></div>
+</main>
+
+<footer>
+  <p>위치 정보는 거리 계산에만 쓰이며 어디에도 저장·전송되지 않습니다.</p>
+</footer>
+
+<div class="scrim" id="scrim" hidden></div>
+<section class="sheet" id="sheet" role="dialog" aria-modal="true" hidden></section>
+<div class="toast" id="toast" hidden></div>
+
+<script src="data/places.js"></script>
+<script src="assets/app.js"></script>
+</body>
+</html>
