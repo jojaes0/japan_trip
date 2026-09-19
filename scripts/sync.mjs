@@ -91,6 +91,7 @@ for (const list of lists) {
 // 구글 쪽 응답이 이상하면 기존 데이터를 지키기 위해 중단
 if (lists.length && raw.size === 0) throw new Error('가져온 장소가 0곳 — 기존 데이터를 유지하고 중단합니다.');
 
+// 지역 추론의 기준점: 분류가 확정된 장소들 (overrides.json + 코멘트에 @지역 을 단 장소)
 const anchors = [...raw.values()].filter((r) => overrides[r.id]?.area).map((r) => ({ ...r, ...overrides[r.id] }));
 const nearest = (r, max) => anchors.map((a) => [meters(r, a), a]).filter(([d]) => d <= max).sort((x, y) => x[0] - y[0])[0]?.[1];
 
@@ -101,6 +102,14 @@ const matchArea = (word, city) => {
   return (known.find((a) => a.area === word) || known.find((a) => a.city === city) || known[0])?.area || word;
 };
 
+const cityOf = (r) => CITIES.find(([, re]) => re.test(r.address))?.[0] || nearest(r, CITY_RADIUS)?.city;
+for (const r of raw.values()) {
+  const word = parseNote(r.note).area;
+  if (!word || overrides[r.id]?.area) continue;
+  const city = overrides[r.id]?.city || cityOf(r);
+  anchors.push({ ...r, city, area: matchArea(word, city) });
+}
+
 const places = [], review = [];
 for (const r of raw.values()) {
   const o = overrides[r.id] || {}, n = parseNote(r.note);
@@ -109,7 +118,7 @@ for (const r of raw.values()) {
   const guess = (field, value) => { guessed.push(field); return value; };
 
   const type = n.type || o.type || guess('종류', TYPE_HINTS.find(([, re]) => re.test(text))?.[0] || r.defaultType || 'etc');
-  const city = o.city || CITIES.find(([, re]) => re.test(r.address))?.[0] || nearest(r, CITY_RADIUS)?.city || guess('도시', '기타');
+  const city = o.city || cityOf(r) || guess('도시', '기타');
   const area = (n.area && matchArea(n.area, city)) || o.area || guess('지역', nearest(r, AREA_RADIUS)?.area || '기타');
   const tags = n.tags || o.tags || guess('태그', TAG_HINTS.filter(([, re]) => re.test(text)).map(([t]) => t));
 
