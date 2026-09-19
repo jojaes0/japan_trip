@@ -126,6 +126,14 @@ main { padding-top: 8px; padding-bottom: 40px; min-height: 60vh; }
 .item .tip { grid-column: 1; margin-top: 3px; font-size: 15px; color: var(--text-2); display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
 .item .meta { grid-column: 1; margin-top: 5px; font-size: 13px; color: var(--text-3); }
 .item .meta b { font-weight: 600; color: var(--accent); }
+/* 추천(#추천): 별 핀 + 별 아이콘만, 나머지는 일반 장소와 같은 스타일 */
+.star { display: inline-block; width: .82em; height: .82em; margin-right: .22em; vertical-align: -.04em; fill: var(--accent); stroke: none; }
+.mk-label .star { fill: var(--c); }
+.tags .pickchip::before { content: none; }
+.sheet .tags .picktag { background: var(--accent-soft); color: var(--accent); font-weight: 700; }
+.pin.pick { display: grid; place-items: center; width: 26px; height: 26px; z-index: 1; box-shadow: 0 0 0 4px color-mix(in srgb, var(--c) 30%, transparent), 0 2px 8px rgba(0, 0, 0, .45); }
+.pin.pick .star { width: 13px; height: 13px; margin: 0; fill: #fff; }
+
 .empty { padding: 80px 0; text-align: center; color: var(--text-2); }
 
 /* Map */

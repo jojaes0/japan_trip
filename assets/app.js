@@ -15,17 +15,19 @@
   const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
   const uniq = (a) => [...new Set(a)];
 
-  const state = { city: '', area: '', type: '', tag: '', q: '', p: '', view: 'list', me: null };
+  const state = { city: '', area: '', type: '', tag: '', pick: false, q: '', p: '', view: 'list', me: null };
 
   // ── URL ↔ state (필터 상태와 열린 장소가 그대로 공유 링크가 됨)
   const readHash = () => {
     const h = new URLSearchParams(location.hash.slice(1));
     for (const k of ['city', 'area', 'type', 'tag', 'p']) state[k] = h.get(k) || '';
     state.view = h.get('view') === 'map' ? 'map' : 'list';
+    state.pick = h.get('pick') === '1';
   };
   const hashFor = (s) => {
     const h = new URLSearchParams();
     for (const k of ['city', 'area', 'type', 'tag', 'p']) if (s[k]) h.set(k, s[k]);
+    if (s.pick) h.set('pick', '1');
     if (s.view === 'map') h.set('view', 'map');
     const str = h.toString();
     return str ? '#' + str : location.pathname + location.search;
@@ -51,12 +53,15 @@
       (!state.area || p.area === state.area) &&
       (skip === 'type' || !state.type || p.type === state.type) &&
       (skip === 'tag' || !state.tag || (p.tags || []).includes(state.tag)) &&
+      (skip === 'pick' || !state.pick || p.pick) &&
       (!q || [p.name, p.tip, p.area, p.city, p.address, ...(p.tags || [])].join(' ').toLowerCase().includes(q)));
     if (state.me) {
       out = out.map((p) => ({ ...p, d: meters(state.me, p) })).sort((a, b) => a.d - b.d);
     }
     return out;
   };
+
+  const STAR = '<svg class="star" viewBox="0 0 24 24" aria-hidden="true"><path d="m12 2.6 2.9 6 6.6.9-4.8 4.6 1.2 6.5L12 17.5l-5.9 3.1 1.2-6.5L2.5 9.5l6.6-.9z"/></svg>';
 
   // ── 필터 UI
   const renderFilters = () => {
@@ -79,7 +84,9 @@
     for (const p of filtered('tag')) for (const t of p.tags || []) count[t] = (count[t] || 0) + 1;
     if (state.tag && !count[state.tag]) state.tag = '';
     const tags = Object.keys(count).sort((x, y) => count[y] - count[x] || x.localeCompare(y, 'ko'));
-    $('tags').innerHTML = tags.map((t) => `<button type="button" data-tag="${esc(t)}" class="${t === state.tag ? 'on' : ''}">${esc(t)}</button>`).join('');
+    const hasPick = filtered('pick').some((p) => p.pick);
+    if (!hasPick) state.pick = false;
+    $('tags').innerHTML = (hasPick ? `<button type="button" data-pick class="pickchip ${state.pick ? 'on' : ''}">${STAR}추천</button>` : '') + tags.map((t) => `<button type="button" data-tag="${esc(t)}" class="${t === state.tag ? 'on' : ''}">${esc(t)}</button>`).join('');
 
     $('types').innerHTML = ['', ...types].map((t) => `<button type="button" data-type="${t}" class="${t === state.type ? 'on' : ''}">${t ? TYPES[t].label : '모든 종류'}</button>`).join('');
   };
@@ -87,8 +94,8 @@
   // ── 목록: 지역(또는 거리)별로 카드에 묶어 보여줌
   const CHEVRON = '<svg class="chev" viewBox="0 0 24 24" aria-hidden="true"><path d="m9 5 7 7-7 7"/></svg>';
   const itemHTML = (p, showArea, i) => `
-    <button type="button" class="item" data-id="${esc(p.id)}" style="animation-delay:${Math.min(i, 12) * 25}ms">
-      <span class="name">${esc(p.name)}</span>
+    <button type="button" class="item${p.pick ? ' pick' : ''}" data-id="${esc(p.id)}" style="animation-delay:${Math.min(i, 12) * 25}ms">
+      <span class="name">${p.pick ? STAR : ''}${esc(p.name)}</span>
       <span class="side">${p.d != null ? `<span class="dist">${fmtDist(p.d)}${p.d < NEAR ? `<small>도보 ${walkMin(p.d)}분</small>` : ''}</span>` : ''}${CHEVRON}</span>
       ${p.tip ? `<span class="tip">${esc(p.tip)}</span>` : ''}
       <span class="meta"><b>${esc((TYPES[p.type] || {}).label || '')}</b>${esc(['', ...(showArea ? [p.area] : []), ...(p.tags || [])].join(' · '))}</span>
@@ -107,7 +114,7 @@
     $('list').innerHTML = groups.filter((g) => g[2].length).map(([eyebrow, title, list]) => `
       <section class="grp">
         <header>${eyebrow ? `<small>${esc(eyebrow)}</small>` : ''}<h2>${esc(title)}</h2><span>${list.length}곳</span></header>
-        <div class="card">${list.map((p) => itemHTML(p, !!state.me, n++)).join('')}</div>
+        <div class="card">${(state.me ? list : [...list].sort((x, y) => !!y.pick - !!x.pick)).map((p) => itemHTML(p, !!state.me, n++)).join('')}</div>
       </section>`).join('');
     return items;
   };
@@ -199,7 +206,7 @@
       `<button type="button" data-type="${t}" class="${state.type && state.type !== t ? 'dim' : ''}" style="--c:${TYPES[t].color}"><i></i>${TYPES[t].label}</button>`).join('');
 
     const box = new maplibregl.LngLatBounds();
-    for (const p of items) {
+    for (const p of [...items].sort((x, y) => !!y.pick - !!x.pick)) {
       const t = TYPES[p.type] || TYPES.etc;
       const make = (cls, html) => {
         const el = Object.assign(document.createElement('button'), { type: 'button', className: cls, title: p.name, innerHTML: html });
@@ -207,8 +214,8 @@
         el.addEventListener('click', (e) => { e.stopPropagation(); openSheet(p.id); });
         return el;
       };
-      const m = new maplibregl.Marker({ element: make('pin', '') }).setLngLat([p.lng, p.lat]).addTo(map);
-      m.label = make('mk-label', `<small>${esc([t.label, (p.tags || [])[0]].filter(Boolean).join(' / '))}</small>${esc(p.name)}`);
+      const m = new maplibregl.Marker({ element: make(p.pick ? 'pin pick' : 'pin', p.pick ? STAR : '') }).setLngLat([p.lng, p.lat]).addTo(map);
+      m.label = make('mk-label', `<small>${p.pick ? STAR : ''}${esc([t.label, (p.tags || [])[0]].filter(Boolean).join(' / '))}</small>${esc(p.name)}`);
       m.labelMarker = new maplibregl.Marker({ element: m.label, anchor: 'bottom', offset: [0, -13] }).setLngLat([p.lng, p.lat]).addTo(map);
       markers.push(m);
       box.extend([p.lng, p.lat]);
@@ -254,9 +261,9 @@
       <div class="grab"></div>
       <button type="button" class="close" aria-label="닫기"><svg viewBox="0 0 24 24"><path d="M5 5l14 14M19 5 5 19"/></svg></button>
       <p class="kind">${esc(t.label)}</p>
-      <h2>${esc(p.name)}</h2>
+      <h2>${p.pick ? STAR : ''}${esc(p.name)}</h2>
       <p class="where">${esc(p.city)} · ${esc(p.area)}${d != null ? ` · 여기서 ${fmtDist(d)}` : ''}</p>
-      ${(p.tags || []).length ? `<div class="tags">${p.tags.map((x) => `<span>${esc(x)}</span>`).join('')}</div>` : ''}
+      ${p.pick || (p.tags || []).length ? `<div class="tags">${p.pick ? `<span class="picktag">${STAR}추천</span>` : ''}${(p.tags || []).map((x) => `<span>${esc(x)}</span>`).join('')}</div>` : ''}
       ${p.tip ? `<h3>${esc(t.tip)}</h3><p class="tiptext">${esc(p.tip)}</p>` : ''}
       ${p.address ? `<h3>주소</h3><p class="addr">${esc(p.address)}</p>` : ''}
       <div class="actions">
@@ -354,7 +361,7 @@
   $('cities').addEventListener('click', (e) => { const b = e.target.closest('button'); if (b) { state.city = b.dataset.city; state.area = ''; render(); } });
   $('areas').addEventListener('click', (e) => { const b = e.target.closest('button'); if (b) { state.area = b.dataset.area; render(); } });
   $('types').addEventListener('click', (e) => { const b = e.target.closest('button'); if (b) { state.type = b.dataset.type; render(); } });
-  $('tags').addEventListener('click', (e) => { const b = e.target.closest('button'); if (b) { state.tag = state.tag === b.dataset.tag ? '' : b.dataset.tag; render(); } });
+  $('tags').addEventListener('click', (e) => { const b = e.target.closest('button'); if (!b) return; if ('pick' in b.dataset) state.pick = !state.pick; else state.tag = state.tag === b.dataset.tag ? '' : b.dataset.tag; render(); });
   $('view').addEventListener('click', (e) => {
     const b = e.target.closest('button'); if (!b) return;
     state.view = b.dataset.v;

@@ -69,6 +69,7 @@ function parseNote(note) {
   const tags = [], out = { tip: '' };
   out.tip = note.replace(/(^|\s)([#@])([^\s#@]+)/g, (_, sp, mark, word) => {
     if (mark === '@') out.area = word.replace(/_/g, ' ');
+    else if (word === '추천') out.pick = true; // 사이트에서 가장 눈에 띄게 표시
     else {
       const type = Object.keys(TYPE_TAGS).find((t) => TYPE_TAGS[t].includes(word));
       if (type) out.type = type; else tags.push(word.replace(/_/g, ' '));
@@ -136,7 +137,7 @@ for (const r of raw.values()) {
   const area = (n.area && matchArea(n.area, city, [...areaBook, ...anchors])) || guess('지역', nearAnchor(r, AREA_RADIUS)?.area || inBook(r)?.area || '기타');
   const tags = n.tags || guess('태그', TAG_HINTS.filter(([, re]) => re.test(text)).map(([t]) => t));
 
-  places.push({ id: r.id, name: r.name, city, area, type, tags, tip: n.tip, address: r.address, lat: r.lat, lng: r.lng, map: r.map });
+  places.push({ id: r.id, name: r.name, city, area, type, tags, tip: n.tip, address: r.address, lat: r.lat, lng: r.lng, map: r.map, ...(n.pick ? { pick: true } : {}) });
   if (guessed.length && !prevIds.has(r.id)) review.push({ name: r.name, city, area, type, tags, guessed });
 }
 places.push(...manual);
