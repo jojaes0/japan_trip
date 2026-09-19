@@ -2,7 +2,7 @@ name: 구글맵 동기화
 
 on:
   schedule:
-    - cron: '7,37 * * * *' # 30분마다 (정각은 GitHub 쪽이 붐벼 지연이 잦아 7분·37분에)
+    - cron: '3-59/10 * * * *' # 10분마다 (정각은 GitHub 쪽이 붐벼 지연이 잦아 3분부터)
   workflow_dispatch:
   push:
     paths: ['data/lists.json', 'data/areas.json', 'data/manual.json', 'scripts/sync.mjs']
