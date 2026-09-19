@@ -84,14 +84,14 @@
     $('types').innerHTML = ['', ...types].map((t) => `<button type="button" data-type="${t}" class="${t === state.type ? 'on' : ''}">${t ? TYPES[t].label : '모든 종류'}</button>`).join('');
   };
 
-  // ── 목록
-  let grouped = false;
-  const itemHTML = (p, i) => `
+  // ── 목록: 지역(또는 거리)별로 카드에 묶어 보여줌
+  const CHEVRON = '<svg class="chev" viewBox="0 0 24 24" aria-hidden="true"><path d="m9 5 7 7-7 7"/></svg>';
+  const itemHTML = (p, showArea, i) => `
     <button type="button" class="item" data-id="${esc(p.id)}" style="animation-delay:${Math.min(i, 12) * 25}ms">
       <span class="name">${esc(p.name)}</span>
-      ${p.d != null ? `<span class="dist">${fmtDist(p.d)}${p.d < NEAR ? `<small>도보 ${walkMin(p.d)}분</small>` : ''}</span>` : ''}
+      <span class="side">${p.d != null ? `<span class="dist">${fmtDist(p.d)}${p.d < NEAR ? `<small>도보 ${walkMin(p.d)}분</small>` : ''}</span>` : ''}${CHEVRON}</span>
       ${p.tip ? `<span class="tip">${esc(p.tip)}</span>` : ''}
-      <span class="meta"><b>${esc((TYPES[p.type] || {}).label || '')}</b>${esc(['', ...(grouped ? [] : [p.area]), ...(p.tags || [])].join(' · '))}</span>
+      <span class="meta"><b>${esc((TYPES[p.type] || {}).label || '')}</b>${esc(['', ...(showArea ? [p.area] : []), ...(p.tags || [])].join(' · '))}</span>
     </button>`;
 
   const renderList = () => {
@@ -99,24 +99,16 @@
     $('count').textContent = state.me ? `${items.length}곳 · 가까운 순` : `${items.length}곳`;
     if (!items.length) { $('list').innerHTML = '<p class="empty">조건에 맞는 장소가 없어요.</p>'; return items; }
 
-    let html = '';
-    grouped = !state.me && !state.area;
-    if (state.me) {
-      const groups = [['걸어서 10분 안쪽', (p) => p.d <= WALK_NEAR], ['3km 이내', (p) => p.d > WALK_NEAR && p.d <= NEAR], ['조금 먼 곳', (p) => p.d > NEAR]];
-      let n = 0;
-      for (const [title, test] of groups) {
-        const g = items.filter(test);
-        if (g.length) html += `<h2 class="group">${title}</h2>` + g.map((p) => itemHTML(p, n++)).join('');
-      }
-    } else if (!state.area) {
-      // 지역별로 묶어 보여주기
-      const key = (p) => (state.city ? p.area : `${p.city} · ${p.area}`);
-      let n = 0;
-      for (const k of uniq(items.map(key))) html += `<h2 class="group">${esc(k)}</h2>` + items.filter((p) => key(p) === k).map((p) => itemHTML(p, n++)).join('');
-    } else {
-      html = items.map(itemHTML).join('');
-    }
-    $('list').innerHTML = html;
+    // [작은 머리말, 제목, 장소들]
+    const groups = state.me
+      ? [['', '걸어서 10분 안쪽', items.filter((p) => p.d <= WALK_NEAR)], ['', '3km 이내', items.filter((p) => p.d > WALK_NEAR && p.d <= NEAR)], ['', '조금 먼 곳', items.filter((p) => p.d > NEAR)]]
+      : uniq(items.map((p) => `${p.city}|${p.area}`)).map((k) => [...k.split('|'), items.filter((p) => `${p.city}|${p.area}` === k)]);
+    let n = 0;
+    $('list').innerHTML = groups.filter((g) => g[2].length).map(([eyebrow, title, list]) => `
+      <section class="grp">
+        <header>${eyebrow ? `<small>${esc(eyebrow)}</small>` : ''}<h2>${esc(title)}</h2><span>${list.length}곳</span></header>
+        <div class="card">${list.map((p) => itemHTML(p, !!state.me, n++)).join('')}</div>
+      </section>`).join('');
     return items;
   };
 
