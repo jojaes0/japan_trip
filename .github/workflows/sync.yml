@@ -2,7 +2,7 @@ name: 구글맵 동기화
 
 on:
   schedule:
-    - cron: '3-59/10 * * * *' # 10분마다 (정각은 GitHub 쪽이 붐벼 지연이 잦아 3분부터)
+    - cron: '3-59/5 * * * *' # 5분마다 (GitHub Actions 예약 실행의 최소 간격)
   workflow_dispatch:
   push:
     paths: ['data/lists.json', 'data/areas.json', 'data/manual.json', 'scripts/sync.mjs']
