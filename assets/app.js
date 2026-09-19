@@ -15,17 +15,17 @@
   const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
   const uniq = (a) => [...new Set(a)];
 
-  const state = { city: '', area: '', type: '', q: '', p: '', view: 'list', me: null };
+  const state = { city: '', area: '', type: '', tag: '', q: '', p: '', view: 'list', me: null };
 
   // ── URL ↔ state (필터 상태와 열린 장소가 그대로 공유 링크가 됨)
   const readHash = () => {
     const h = new URLSearchParams(location.hash.slice(1));
-    for (const k of ['city', 'area', 'type', 'p']) state[k] = h.get(k) || '';
+    for (const k of ['city', 'area', 'type', 'tag', 'p']) state[k] = h.get(k) || '';
     state.view = h.get('view') === 'map' ? 'map' : 'list';
   };
   const hashFor = (s) => {
     const h = new URLSearchParams();
-    for (const k of ['city', 'area', 'type', 'p']) if (s[k]) h.set(k, s[k]);
+    for (const k of ['city', 'area', 'type', 'tag', 'p']) if (s[k]) h.set(k, s[k]);
     if (s.view === 'map') h.set('view', 'map');
     const str = h.toString();
     return str ? '#' + str : location.pathname + location.search;
@@ -43,12 +43,14 @@
   const walkMin = (m) => Math.max(1, Math.round((m * 1.25) / 75)); // 직선거리 보정 · 분속 75m
 
   // ── 필터
-  const filtered = (anyType) => {
+  // skip: 무시할 필터 (범례·태그 칩은 자기 자신의 필터를 빼고 후보를 계산)
+  const filtered = (skip = '') => {
     const q = state.q.trim().toLowerCase();
     let out = PLACES.filter((p) =>
       (!state.city || p.city === state.city) &&
       (!state.area || p.area === state.area) &&
-      (anyType || !state.type || p.type === state.type) &&
+      (skip === 'type' || !state.type || p.type === state.type) &&
+      (skip === 'tag' || !state.tag || (p.tags || []).includes(state.tag)) &&
       (!q || [p.name, p.tip, p.area, p.city, p.address, ...(p.tags || [])].join(' ').toLowerCase().includes(q)));
     if (state.me) {
       out = out.map((p) => ({ ...p, d: meters(state.me, p) })).sort((a, b) => a.d - b.d);
@@ -72,6 +74,13 @@
       : '';
 
     const types = Object.keys(TYPES).filter((t) => PLACES.some((p) => p.type === t));
+    // 태그: 지금 조건에 남아 있는 장소들의 태그를 많은 순으로
+    const count = {};
+    for (const p of filtered('tag')) for (const t of p.tags || []) count[t] = (count[t] || 0) + 1;
+    if (state.tag && !count[state.tag]) state.tag = '';
+    const tags = Object.keys(count).sort((x, y) => count[y] - count[x] || x.localeCompare(y, 'ko'));
+    $('tags').innerHTML = tags.map((t) => `<button type="button" data-tag="${esc(t)}" class="${t === state.tag ? 'on' : ''}">${esc(t)}</button>`).join('');
+
     $('types').innerHTML = ['', ...types].map((t) => `<button type="button" data-type="${t}" class="${t === state.type ? 'on' : ''}">${t ? TYPES[t].label : '모든 종류'}</button>`).join('');
   };
 
@@ -193,7 +202,7 @@
     markers = [];
 
     // 범례는 종류 필터와 무관하게 이 지역에 있는 모든 종류를 보여주고, 누르면 그 종류만 남김
-    const inScope = uniq(filtered(true).map((p) => p.type));
+    const inScope = uniq(filtered('type').map((p) => p.type));
     legend.innerHTML = Object.keys(TYPES).filter((t) => inScope.includes(t)).map((t) =>
       `<button type="button" data-type="${t}" class="${state.type && state.type !== t ? 'dim' : ''}" style="--c:${TYPES[t].color}"><i></i>${TYPES[t].label}</button>`).join('');
 
@@ -321,6 +330,7 @@
   $('cities').addEventListener('click', (e) => { const b = e.target.closest('button'); if (b) { state.city = b.dataset.city; state.area = ''; render(); } });
   $('areas').addEventListener('click', (e) => { const b = e.target.closest('button'); if (b) { state.area = b.dataset.area; render(); } });
   $('types').addEventListener('click', (e) => { const b = e.target.closest('button'); if (b) { state.type = b.dataset.type; render(); } });
+  $('tags').addEventListener('click', (e) => { const b = e.target.closest('button'); if (b) { state.tag = state.tag === b.dataset.tag ? '' : b.dataset.tag; render(); } });
   $('view').addEventListener('click', (e) => {
     const b = e.target.closest('button'); if (!b) return;
     state.view = b.dataset.v;
