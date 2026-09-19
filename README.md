@@ -18,7 +18,7 @@
 |---|---|
 | 장소 추가 · 삭제 · 팁 수정 | 구글맵 리스트에서 |
 | 분류 지정 | 구글맵 코멘트에 `#음식점 #스시 #야식 @우메다` (`#`종류·태그, `@`상세 지역, 띄어쓰기는 `_`) — 해시태그는 사이트의 팁에서는 자동으로 빠집니다 |
-| 분류를 코멘트 말고 파일로 고치기 / 이름 바꾸기 / 숨기기 | [data/overrides.json](data/overrides.json) — `name, city, area, type, tags, tip, hide` |
+| 지금 바로 반영 | 사이트 맨 아래 **지금 동기화** (처음 한 번 GitHub 토큰 설정, 또는 `…/#sync` 즐겨찾기) |
 | 다른 리스트 추가 (예: 도쿄 맛집) | [data/lists.json](data/lists.json) 에 `{ "url": "공유 링크", "defaultType": "food" }` |
 | 구글맵에 없는 항목 (투어 등) | [data/manual.json](data/manual.json) 에 places.js 와 같은 형식으로 |
 
@@ -37,8 +37,8 @@
 
 종류 값: `food` 음식점 · `cafe` 카페·디저트 · `shop` 쇼핑 · `stay` 숙소 · `sight` 관광지 · `tour` 투어
 
-**분류 우선순위**: 코멘트의 해시태그 → overrides.json → 자동 추론(리스트 기본 종류 + 이름·코멘트 키워드, 지역은 700m 안의 가장 가까운 기존 장소).
-새 장소가 자동 추론으로 분류되면 **"새 장소 분류 확인" 이슈**가 생겨 메일로 알려줍니다. 맞으면 닫고, 틀린 곳만 고치면 됩니다.
+**분류 방식**: 코멘트에 해시태그가 있으면 그대로, 없으면 자동 추론합니다 — 종류는 리스트 기본값 + 이름·코멘트 키워드, 지역은 ① 근처(700m)에 `@지역`을 단 장소 ② [data/areas.json](data/areas.json) 지역 사전(주소 키워드 → 중심 좌표 반경) 순서.
+추론이 틀렸다면 **구글맵 코멘트에 해시태그를 적어 보정**합니다. 새 장소가 추론으로 분류되면 **"새 장소 분류 확인" 이슈**가 생겨 메일로 알려줍니다.
 
 > [data/places.js](data/places.js) 는 자동 생성 파일이라 직접 고치면 다음 동기화 때 덮어써집니다.
 > 동기화는 구글의 비공식 주소를 읽습니다. 막히면 동기화만 실패하고 사이트는 마지막 데이터로 계속 동작합니다. PC에서 `node scripts/sync.mjs` 로 직접 돌릴 수도 있습니다.
@@ -60,7 +60,7 @@ assets/style.css  디자인
 assets/app.js     필터 · 내 주변 · 지도 · 공유
 data/places.js    장소 데이터 (자동 생성)
 data/lists.json   동기화할 구글맵 리스트
-data/overrides.json  장소별 분류 보정
+data/areas.json   지역 사전 (동네별 주소 키워드 · 중심 좌표)
 data/manual.json  구글맵에 없는 항목
 scripts/sync.mjs  동기화 스크립트
 .github/workflows/sync.yml  매일 자동 동기화

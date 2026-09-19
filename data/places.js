@@ -1,7 +1,7 @@
 /*
   자동 생성 파일 — 직접 고치지 마세요. (node scripts/sync.mjs)
   · 장소 추가/삭제/코멘트 : 구글맵 리스트에서
-  · 분류 고치기           : 구글맵 코멘트에 #스시 #야식 @우메다  또는  data/overrides.json
+  · 분류 고치기           : 구글맵 코멘트에 #스시 #야식 @우메다
   · 구글맵에 없는 항목(투어 등) : data/manual.json
 */
 window.PLACES = [
@@ -41,9 +41,7 @@ window.PLACES = [
     "city": "교토",
     "area": "가라스마·산조",
     "type": "food",
-    "tags": [
-      "함바그"
-    ],
+    "tags": [],
     "tip": "",
     "address": "",
     "lat": 35.008824,
@@ -57,8 +55,8 @@ window.PLACES = [
     "area": "신사이바시",
     "type": "cafe",
     "tags": [
-      "카페",
-      "아이스크림"
+      "아이스크림",
+      "카페"
     ],
     "tip": "쿠크다스 아이스크림",
     "address": "2 Chome-3-23 Shinsaibashisuji, Chuo Ward, Osaka, 542-0085",
@@ -73,7 +71,8 @@ window.PLACES = [
     "area": "닛폰바시(덴덴타운)",
     "type": "shop",
     "tags": [
-      "애니 굿즈"
+      "애니 굿즈",
+      "가성비"
     ],
     "tip": "1층 귀칼굿즈 많음 (저렴)",
     "address": "〒556-0005 Osaka, Naniwa Ward, Nipponbashi, 4 Chome−10−4 Ｋ－ＢＯＯＫＳなんば壱番館",
@@ -89,7 +88,7 @@ window.PLACES = [
     "type": "shop",
     "tags": [
       "피규어",
-      "중고"
+      "가성비"
     ],
     "tip": "중고 피규어 저렴",
     "address": "4 Chome-15-15 Nipponbashi, Naniwa Ward, Osaka, 556-0005",
@@ -103,10 +102,7 @@ window.PLACES = [
     "city": "오사카",
     "area": "신사이바시",
     "type": "food",
-    "tags": [
-      "야키토리",
-      "술 한잔"
-    ],
+    "tags": [],
     "tip": "",
     "address": "2 Chome-3-20 Higashishinsaibashi, Chuo Ward, Osaka, 542-0083",
     "lat": 34.670673,
@@ -260,8 +256,7 @@ window.PLACES = [
     "area": "기요미즈",
     "type": "shop",
     "tags": [
-      "화장품",
-      "기념품"
+      "화장품"
     ],
     "tip": "요로시 화장당 핸드크림",
     "address": "2 Chome-208-5 Kiyomizu, Higashiyama Ward, Kyoto, 605-0862",
@@ -321,7 +316,8 @@ window.PLACES = [
     "area": "난바·도톤보리",
     "type": "shop",
     "tags": [
-      "주류"
+      "주류",
+      "현지인 추천"
     ],
     "tip": "현지인이 술 싸게 사는 곳",
     "address": "〒556-0017 Osaka, Naniwa Ward, Minatomachi, 1 Chome−4−1 O-CATモール内1Ｆ",
@@ -351,8 +347,7 @@ window.PLACES = [
     "area": "난바·도톤보리",
     "type": "food",
     "tags": [
-      "교자",
-      "중식"
+      "교자"
     ],
     "tip": "",
     "address": "3 Chome-3-24 Nanbanaka, Naniwa Ward, Osaka, 556-0011",
@@ -493,8 +488,8 @@ window.PLACES = [
     "area": "난바·도톤보리",
     "type": "cafe",
     "tags": [
-      "디저트",
-      "메론빵"
+      "메론빵",
+      "아이스크림"
     ],
     "tip": "도톤보리 딸기아이스크림 들어간 메론빵 파는 곳\n진짜진짜 맛있음 꼭 먹길",
     "address": "Shibata.Bld, 1 Chome-5-8 Dotonbori, Chuo Ward, Osaka, 542-0071",
@@ -526,8 +521,8 @@ window.PLACES = [
     "type": "food",
     "tags": [
       "야키토리",
-      "현지인 맛집",
-      "술 한잔"
+      "술 한잔",
+      "현지인 추천"
     ],
     "tip": "도톤보리 최고의 야키토리집 강추함(현지인 맛집)\n대신 재료 소진으로 일찍 마감하니 오후 9시까지는 방문할 것",
     "address": "〒542-0084 Osaka, Chuo Ward, Souemoncho, 4−5 NBクリスタルタワ",
@@ -543,7 +538,7 @@ window.PLACES = [
     "type": "food",
     "tags": [
       "스시",
-      "현지인 맛집"
+      "현지인 추천"
     ],
     "tip": "우메다역 현지인들만 있는 스시 맛집",
     "address": "1 Chome-3-14 Oyodominami, Kita Ward, Osaka, 531-0075",
@@ -589,8 +584,9 @@ window.PLACES = [
     "type": "food",
     "tags": [
       "로바다야키",
-      "가성비",
-      "술 한잔"
+      "이자카야",
+      "술 한잔",
+      "가성비"
     ],
     "tip": "난바 가성비 로바다야끼(이자카야 같은) 맛집",
     "address": "1 Chome-1-20 Namba, Chuo Ward, Osaka, 542-0076",
@@ -605,7 +601,6 @@ window.PLACES = [
     "area": "닛폰바시(덴덴타운)",
     "type": "food",
     "tags": [
-      "일식",
       "타마고야키"
     ],
     "tip": "난바 타마고야끼가 맛있는 일식집",
@@ -621,6 +616,7 @@ window.PLACES = [
     "area": "가라스마·산조",
     "type": "food",
     "tags": [
+      "야키토리",
       "이자카야",
       "술 한잔"
     ],
@@ -653,7 +649,8 @@ window.PLACES = [
     "type": "stay",
     "tags": [
       "료칸",
-      "온천"
+      "호텔",
+      "가성비"
     ],
     "tip": "고베 아리마온센 지역 가성비 료칸 (저녁 맛있음)",
     "address": "1007 Arimacho, Kita Ward, Kobe, Hyogo 651-1401",

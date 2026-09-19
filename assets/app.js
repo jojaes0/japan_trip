@@ -242,6 +242,15 @@
   };
 
   // ── 상세 시트
+  let sheetOpen = false;
+  const showSheet = (html) => {
+    if (html != null) $('sheet').innerHTML = html;
+    sheetOpen = true;
+    $('sheet').hidden = $('scrim').hidden = false;
+    $('sheet').scrollTop = 0;
+    requestAnimationFrame(() => requestAnimationFrame(() => { $('sheet').classList.add('open'); $('scrim').classList.add('open'); }));
+    document.body.classList.add('locked');
+  };
   const openSheet = (id) => {
     const p = PLACES.find((x) => x.id === id);
     if (!p) return;
@@ -263,26 +272,24 @@
         <a href="${esc(dir)}" target="_blank" rel="noopener">길찾기</a>
         <button type="button" data-share>공유</button>
       </div>`;
-    $('sheet').hidden = $('scrim').hidden = false;
-    $('sheet').scrollTop = 0;
-    requestAnimationFrame(() => requestAnimationFrame(() => { $('sheet').classList.add('open'); $('scrim').classList.add('open'); }));
-    document.body.classList.add('locked');
+    showSheet();
   };
   const closeSheet = () => {
-    if (!state.p) return;
-    state.p = ''; writeHash();
+    if (!sheetOpen) return;
+    sheetOpen = false;
+    if (state.p) { state.p = ''; writeHash(); }
     $('sheet').classList.remove('open'); $('scrim').classList.remove('open');
     document.body.classList.remove('locked');
-    setTimeout(() => { if (!state.p) $('sheet').hidden = $('scrim').hidden = true; }, 500);
+    setTimeout(() => { if (!sheetOpen) $('sheet').hidden = $('scrim').hidden = true; }, 500);
   };
 
   let toastTimer;
-  const toast = (msg) => {
+  const toast = (msg, ms = 1800) => {
     const el = $('toast');
     el.textContent = msg; el.hidden = false;
     requestAnimationFrame(() => el.classList.add('open'));
     clearTimeout(toastTimer);
-    toastTimer = setTimeout(() => { el.classList.remove('open'); setTimeout(() => (el.hidden = true), 400); }, 1800);
+    toastTimer = setTimeout(() => { el.classList.remove('open'); setTimeout(() => (el.hidden = true), 400); }, ms);
   };
   const share = async (title, url) => {
     try {
@@ -325,6 +332,68 @@
     }, { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 });
   };
 
+  // ── 지금 동기화: GitHub Actions 의 동기화 워크플로를 바로 실행. 정적 사이트라 실행 권한은 이 기기에만 저장한 토큰으로
+  const REPO = 'jojaes0/japan_trip', WORKFLOW = 'sync.yml', TOKEN_KEY = 'jt-sync-token';
+  const store = { get: () => { try { return localStorage.getItem(TOKEN_KEY) || ''; } catch { return ''; } }, set: (v) => { try { v ? localStorage.setItem(TOKEN_KEY, v) : localStorage.removeItem(TOKEN_KEY); } catch {} } };
+  const gh = (path, token, opt = {}) => fetch(`https://api.github.com/repos/${REPO}/${path}`, { ...opt, cache: 'no-store', headers: { Accept: 'application/vnd.github+json', ...(token ? { Authorization: `Bearer ${token}` } : {}) } });
+  const wait = (ms) => new Promise((ok) => setTimeout(ok, ms));
+  const headSha = async (token) => (await (await gh('commits/main', token)).json()).sha;
+
+  const showSyncSetup = (msg) => {
+    showSheet(`
+      <div class="grab"></div>
+      <button type="button" class="close" aria-label="닫기"><svg viewBox="0 0 24 24"><path d="M5 5l14 14M19 5 5 19"/></svg></button>
+      <p class="kind">관리자용</p>
+      <h2>지금 동기화</h2>
+      <p class="where">${esc(msg || '구글맵 리스트의 최신 내용을 바로 가져옵니다. 이 기기에서 처음 한 번만 설정하면 됩니다.')}</p>
+      <h3>1. 토큰 만들기</h3>
+      <p class="addr"><a href="https://github.com/settings/personal-access-tokens/new" target="_blank" rel="noopener">GitHub 토큰 만들기</a> → Repository access: <b>Only select repositories → japan_trip</b> → Permissions → Repository → <b>Actions: Read and write</b> → Generate</p>
+      <h3>2. 붙여넣기</h3>
+      <input class="field" id="token" type="password" placeholder="github_pat_…" autocomplete="off">
+      <p class="addr">토큰은 이 기기의 브라우저에만 저장되고, GitHub 외에는 어디에도 전송되지 않습니다.</p>
+      <div class="actions">
+        <button type="button" class="primary" data-save-token>저장하고 동기화</button>
+        <a href="https://github.com/${REPO}/actions/workflows/${WORKFLOW}" target="_blank" rel="noopener" style="grid-column:1/-1">토큰 없이: GitHub에서 Run workflow</a>
+      </div>`);
+  };
+
+  let syncing = false;
+  const syncNow = async () => {
+    if (syncing) return;
+    const token = store.get();
+    if (!token) return showSyncSetup();
+    const btn = $('sync');
+    syncing = true; btn.textContent = '동기화 중…';
+    const done = (msg) => { syncing = false; btn.textContent = '지금 동기화'; if (msg) toast(msg, 4000); };
+    try {
+      const before = await headSha(token), since = Date.now() - 15000;
+      const res = await gh(`actions/workflows/${WORKFLOW}/dispatches`, token, { method: 'POST', body: JSON.stringify({ ref: 'main' }) });
+      if ([401, 403, 404].includes(res.status)) { store.set(''); done(); return showSyncSetup('토큰이 만료됐거나 권한이 부족해요. 새 토큰을 넣어주세요. (Actions: Read and write)'); }
+      if (!res.ok) return done('동기화를 시작하지 못했어요. 잠시 후 다시 시도해주세요.');
+      toast('구글맵에서 가져오는 중… 1분쯤 걸려요', 4000);
+
+      let run;
+      for (let i = 0; i < 40 && !(run && run.status === 'completed'); i++) {
+        await wait(5000);
+        const runs = (await (await gh(`actions/workflows/${WORKFLOW}/runs?per_page=5&event=workflow_dispatch`, token)).json()).workflow_runs || [];
+        run = runs.find((r) => new Date(r.created_at).getTime() >= since);
+      }
+      if (!run || run.status !== 'completed') return done('아직 실행 중이에요. 잠시 후 새로고침해 보세요.');
+      if (run.conclusion !== 'success') return done('동기화에 실패했어요. GitHub Actions 기록을 확인해주세요.');
+      if ((await headSha(token)) === before) return done('구글맵에 바뀐 내용이 없어요. 이미 최신입니다.');
+
+      // 새 데이터가 커밋됨 → 사이트에 배포될 때까지 기다렸다가 새로고침
+      btn.textContent = '반영 중…';
+      const current = await (await fetch('data/places.js', { cache: 'no-store' })).text();
+      for (let i = 0; i < 30; i++) {
+        await wait(6000);
+        const next = await (await fetch(`data/places.js?t=${Date.now()}`, { cache: 'no-store' })).text();
+        if (next !== current) return location.reload();
+      }
+      done('가져오기는 끝났어요. 1~2분 뒤 새로고침하면 반영됩니다.');
+    } catch { done('네트워크 오류로 동기화를 확인하지 못했어요.'); }
+  };
+
   // ── 칩 줄 가로 스크롤: 터치는 기본 동작, 마우스는 휠·드래그로. 더 있는 쪽 가장자리는 흐리게
   const edges = (el) => {
     el.classList.toggle('more-l', el.scrollLeft > 4);
@@ -362,9 +431,15 @@
     render();
   });
   $('list').addEventListener('click', (e) => { const b = e.target.closest('.item'); if (b) openSheet(b.dataset.id); });
+  $('sync').addEventListener('click', syncNow);
   $('scrim').addEventListener('click', closeSheet);
   $('sheet').addEventListener('click', (e) => {
     if (e.target.closest('.close')) return closeSheet();
+    if (e.target.closest('[data-save-token]')) {
+      const v = $('token').value.trim();
+      if (!v) return $('token').focus();
+      store.set(v); closeSheet(); return syncNow();
+    }
     if (e.target.closest('[data-share]')) {
       const p = PLACES.find((x) => x.id === state.p);
       share(`${p.name} — 일본 여행 정보`, location.origin + location.pathname + '#p=' + encodeURIComponent(p.id));
@@ -376,7 +451,9 @@
 
   // ── 시작
   $('total').textContent = `${uniq(PLACES.map((p) => p.city)).join(' · ')}, ${PLACES.length}곳.`;
+  const wantSync = location.hash === '#sync'; // …/#sync 를 즐겨찾기해 두면 열자마자 동기화
   readHash();
   render();
   if (state.p) openSheet(state.p);
+  if (wantSync) syncNow();
 })();

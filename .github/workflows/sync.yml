@@ -5,7 +5,7 @@ on:
     - cron: '0 18 * * *' # 매일 03:00 KST
   workflow_dispatch:
   push:
-    paths: ['data/lists.json', 'data/overrides.json', 'data/manual.json', 'scripts/sync.mjs']
+    paths: ['data/lists.json', 'data/areas.json', 'data/manual.json', 'scripts/sync.mjs']
 
 permissions:
   contents: write

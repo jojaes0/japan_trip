@@ -1,0 +1,14 @@
+[
+  {"city":"오사카","area":"난바·도톤보리","lat":34.6674,"lng":135.50314,"radius":1000,"match":["Sennichimae","Souemoncho","Dotonbori","Namba","Nanbanaka","Minatomachi"]},
+  {"city":"교토","area":"교토역·고조","lat":34.99294,"lng":135.75526,"radius":600},
+  {"city":"교토","area":"가라스마·산조","lat":35.007,"lng":135.76169,"radius":600},
+  {"city":"오사카","area":"신사이바시","lat":34.67111,"lng":135.50435,"radius":600,"match":["Shinsaibashisuji","Higashishinsaibashi","Shimanouchi"]},
+  {"city":"오사카","area":"닛폰바시(덴덴타운)","lat":34.65964,"lng":135.50501,"radius":600},
+  {"city":"오사카","area":"텐진바시·텐마","lat":34.70053,"lng":135.5113,"radius":600,"match":["Tenjinbashi"]},
+  {"city":"오사카","area":"우메다","lat":34.70389,"lng":135.49526,"radius":700,"match":["Umeda","Shibata","Kakudacho","Oyodominami"]},
+  {"city":"교토","area":"가와라마치·시조","lat":35.00309,"lng":135.76779,"radius":600},
+  {"city":"교토","area":"기요미즈","lat":34.99656,"lng":135.78036,"radius":600,"match":["Kiyomizu"]},
+  {"city":"오사카","area":"타니마치","lat":34.6665,"lng":135.51398,"radius":600},
+  {"city":"교토","area":"아라시야마","lat":35.01684,"lng":135.67744,"radius":600,"match":["Sagatenryuji","Arashiyama"]},
+  {"city":"고베","area":"아리마온센","lat":34.79636,"lng":135.24745,"radius":600,"match":["Arimacho"]}
+]
