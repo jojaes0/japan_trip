@@ -28,7 +28,7 @@ const TAG_HINTS = [
   ['스파게티', /스파게티|파스타/], ['타마고야키', /타마고야[끼키]/], ['해산물', /해산물/], ['순두부찌개', /순두부/],
   ['메론빵', /메론빵|melon bread/i], ['아이스크림', /아이스크림/], ['카페', /카페|cafe|coffee/i],
   ['피규어', /피규어/], ['애니 굿즈', /굿즈|k-books/i], ['화장품', /화장|핸드크림/], ['주류', /술 싸게|사케노|리쿼/],
-  ['료칸', /료칸|旅館/], ['호텔', /호텔|hotel|inn| 인( |$)/i], ['온천', /온천|hot spring/i],
+  ['료칸', /료칸|旅館/], ['호텔', /호텔|hotel|binnb| 인( |$)/i], ['온천', /온천|hot spring/i],
   ['술 한잔', /이자카야|居酒屋|야키토리|로바다야|술먹기|torito/i], ['가성비', /가성비|저렴|가격이 좋/], ['현지인 추천', /현지인/], ['혼밥 가능', /1인도|혼밥|혼자서/],
 ];
 const CITIES = [
@@ -52,7 +52,10 @@ async function fetchList(url) {
   }
   if (!id) throw new Error(`리스트 ID를 찾지 못함: ${url}`);
   const api = `https://www.google.com/maps/preview/entitylist/getlist?authuser=0&hl=ko&gl=kr&pb=!1m4!1s${id}!2e1!3m1!1e1!2e2!3e2!4i500!16b1`;
-  const text = await (await fetch(api, { headers: { 'user-agent': UA } })).text();
+  const res = await fetch(api, { headers: { 'user-agent': UA } });
+  const text = await res.text();
+  // 구글이 일시적으로 막은 경우(429·403·5xx, 또는 JSON 대신 확인 페이지): 이번 회차만 건너뜀
+  if (!res.ok || !text.startsWith(")]}'")) throw Object.assign(new Error(`구글 응답 ${res.status}`), { temporary: true });
   const rows = JSON.parse(text.replace(/^\)\]\}'\s*/, ''))[0][8] || [];
   return rows.map((it) => {
     const p = it[1];
@@ -89,7 +92,13 @@ try {
 
 const raw = new Map();
 for (const list of lists) {
-  const rows = await fetchList(list.url);
+  let rows;
+  try { rows = await fetchList(list.url); } catch (e) {
+    if (!e.temporary && e.message !== 'fetch failed') throw e; // 응답 형식이 바뀐 경우 등은 진짜 실패로 알림
+    // 일시적 차단·네트워크 오류는 기존 데이터를 그대로 두고 정상 종료 (5분마다 실패 메일이 쏟아지지 않게)
+    console.log(`::warning::동기화 건너뜀 — ${e.message}. 기존 데이터를 유지합니다.`);
+    process.exit(0);
+  }
   console.log(`${list.url} → ${rows.length}곳`);
   for (const r of rows) if (!raw.has(r.id)) raw.set(r.id, { ...r, defaultType: list.defaultType });
 }
@@ -101,7 +110,7 @@ const cityByAddress = (r) => CITIES.find(([, re]) => re.test(r.address))?.[0];
 const inBook = (r, max) => (!max && areaBook.find((b) => (b.match || []).some((k) => r.address.includes(k)))) || areaBook.map((b) => [meters(r, b), b]).filter(([d, b]) => d <= (max || b.radius)).sort((x, y) => x[0] - y[0])[0]?.[1];
 
 // "@난바" 처럼 일부만 적어도 알려진 지역 "난바·도톤보리" 로 맞춰 줌 (같은 도시 우선, 모르는 이름이면 새 지역으로)
-const squash = (s) => s.replace(/[·s()]/g, '');
+const squash = (s) => s.replace(/[·\s()]/g, '');
 const matchArea = (word, city, known) => {
   const hits = known.filter((k) => squash(k.area).includes(squash(word)));
   return (hits.find((k) => k.area === word) || hits.find((k) => k.city === city) || hits[0])?.area || word;
