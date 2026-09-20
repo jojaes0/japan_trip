@@ -14,13 +14,13 @@
 
 ## 장소 관리
 
-**원본은 구글맵 저장 리스트입니다.** 평소처럼 구글맵에 저장하고 코멘트를 쓰면, GitHub Actions가 5분마다 사이트로 옮겨옵니다.
+**원본은 구글맵 저장 리스트입니다.** 평소처럼 구글맵에 저장하고 코멘트를 쓰면, GitHub Actions가 30분마다 사이트로 옮겨옵니다 (GitHub 사정에 따라 몇 시간 늦어질 수 있음).
 
 | 하고 싶은 일 | 방법 |
 |---|---|
 | 장소 추가 · 삭제 · 팁 수정 | 구글맵 리스트에서 |
 | 분류 지정 | 구글맵 코멘트에 `#음식점 #스시 #야식 @우메다` (`#`종류·태그, `@`상세 지역, 띄어쓰기는 `_`) — 해시태그는 사이트의 팁에서는 자동으로 빠집니다 |
-| 지금 바로 반영 | 저장소 Actions 탭 → "구글맵 동기화" → Run workflow (보통은 5~15분 안에 자동 반영) |
+| 지금 바로 반영 | 저장소 Actions 탭 → "구글맵 동기화" → Run workflow (자동 반영은 30분~몇 시간) |
 | **추천 표시** | 코멘트에 `#추천` — 목록 맨 위·배지, 지도에서 별 핀과 강조 라벨, `★ 추천` 필터 |
 | 다른 리스트 추가 (예: 도쿄 맛집) | [data/lists.json](data/lists.json) 에 `{ "url": "공유 링크", "defaultType": "food" }` |
 | **투어** 추가 · 수정 | [투어 구글 시트](https://docs.google.com/spreadsheets/d/1pVqDnp9qBkJyPdSGsv5_70IUaRjHG4WiqB4o55YrxkE/edit)에 한 줄 추가 — 열: `주소 · 투어명 · 투어 정보 · 이동수단` (선택: `코스 · 도시 · 태그 · 팁 · 추천`). 도시는 투어 정보에서 자동 판별 |
@@ -67,5 +67,5 @@ data/lists.json   동기화할 구글맵 리스트(url) · 투어 시트(sheet)
 data/stops-cache.json  투어 코스 좌표 캐시 (자동 생성)
 data/areas.json   지역 사전 (동네별 주소 키워드 · 중심 좌표)
 scripts/sync.mjs  동기화 스크립트
-.github/workflows/sync.yml  5분마다 자동 동기화
+.github/workflows/sync.yml  30분마다 자동 동기화
 ```
