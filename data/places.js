@@ -6,6 +6,21 @@
 */
 window.PLACES = [
   {
+    "id": "1eedjunar95f4",
+    "name": "야키니쿠 리키마루 센니치마에점",
+    "city": "오사카",
+    "area": "난바·도톤보리",
+    "type": "food",
+    "tags": [
+      "야키니쿠"
+    ],
+    "tip": "",
+    "address": "〒542-0074 Osaka, Chuo Ward, Sennichimae, 2 Chome−9−17 アムザ 1000 2F",
+    "lat": 34.666755,
+    "lng": 135.503472,
+    "map": "https://www.google.com/maps?cid=6633647692440524464"
+  },
+  {
     "id": "1me1uvt9atlfo",
     "name": "야키토리 카와라야",
     "city": "오사카",
