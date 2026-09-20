@@ -28,9 +28,8 @@
   <p class="lede">직접 가보고 좋았던 곳만. <span id="total"></span></p>
 </header>
 
-<div class="bar" id="bar">
-  <div class="bar-inner">
-    <div class="row">
+<div class="searchrow">
+  <div class="row">
       <label class="search">
         <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="6.5"/><path d="m16 16 4.5 4.5"/></svg>
         <input id="q" type="search" placeholder="이름, 메뉴, 팁 검색" autocomplete="off">
@@ -39,14 +38,15 @@
         <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20.5 3.5 3.8 10.6c-.5.2-.4.9.1 1l6.3 1.9 1.9 6.3c.1.5.8.6 1 .1z"/></svg>
         <span>내 주변</span>
       </button>
-      <div class="viewseg" id="view">
-        <button type="button" data-v="list" class="on">목록</button>
-        <button type="button" data-v="map">지도</button>
-      </div>
-      <button class="tripbtn" id="tripbtn" type="button" aria-label="내 여행">
-        <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="7.5" width="16" height="12.5" rx="2.5"/><path d="M9 7.5V5.8A1.8 1.8 0 0 1 10.8 4h2.4A1.8 1.8 0 0 1 15 5.8v1.7M9 11.5v4.5M15 11.5v4.5"/></svg>
-        <b id="tripcount"></b>
-      </button>
+  </div>
+</div>
+
+<div class="bar" id="bar">
+  <div class="bar-inner">
+    <div class="viewseg" id="view">
+      <button type="button" data-v="list" class="on">목록</button>
+      <button type="button" data-v="map">지도</button>
+      <button type="button" data-v="trip">내 여행<b id="tripcount"></b></button>
     </div>
     <div class="seg" id="cities" role="tablist"></div>
   </div>

@@ -69,7 +69,7 @@ button, input { font: inherit; color: inherit; letter-spacing: inherit; }
 button { border: 0; background: none; cursor: pointer; }
 svg { fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
 
-.hero, .bar-inner, .filters, main, footer { max-width: 720px; margin: 0 auto; padding-left: 20px; padding-right: 20px; }
+.hero, .searchrow, .bar-inner, .filters, main, footer { max-width: 720px; margin: 0 auto; padding-left: 20px; padding-right: 20px; }
 
 /* Large title */
 .theme { position: absolute; top: max(18px, env(safe-area-inset-top)); right: 20px; width: 40px; height: 40px; border-radius: 50%; display: grid; place-items: center; background: var(--fill); color: var(--text-2); transition: transform .2s var(--ease), background .2s; }
@@ -106,23 +106,14 @@ h1 { font-size: clamp(34px, 7vw, 48px); font-weight: 700; line-height: 1.1; lett
 .near.busy svg { animation: pulse 1s ease-in-out infinite; }
 @keyframes pulse { 50% { opacity: .3; } }
 button:active { transform: scale(.96); }
-.viewseg { flex: none; display: flex; padding: 2px; border-radius: 12px; background: var(--fill); }
-.viewseg button { height: 36px; padding: 0 13px; border-radius: 10px; font-size: 14px; font-weight: 500; color: var(--text-2); transition: background .2s, color .2s; }
+.searchrow { padding-top: 6px; }
+.viewseg { display: grid; grid-auto-flow: column; grid-auto-columns: 1fr; padding: 2px; border-radius: 12px; background: var(--fill); }
+.viewseg button { display: flex; align-items: center; justify-content: center; gap: 6px; height: 36px; padding: 0 13px; border-radius: 10px; font-size: 14px; font-weight: 500; color: var(--text-2); transition: background .2s, color .2s; }
 .viewseg button.on { background: var(--thumb, var(--raised)); color: var(--text); font-weight: 600; box-shadow: 0 1px 4px rgba(0, 0, 0, .12); }
-@media (max-width: 480px) {
-  .near { width: 40px; padding: 0; justify-content: center; }
-  .near span { display: none; }
-  .near svg { width: 18px; height: 18px; }
-  .viewseg button { padding: 0 11px; }
-}
-.tripbtn { position: relative; flex: none; width: 40px; height: 40px; border-radius: 12px; display: grid; place-items: center; background: var(--fill); color: var(--text-2); transition: background .2s, color .2s, transform .2s var(--ease); }
-.tripbtn svg { width: 19px; height: 19px; }
-.tripbtn.on { background: var(--text); color: var(--bg); }
-.tripbtn b { position: absolute; top: -5px; right: -5px; min-width: 18px; height: 18px; padding: 0 5px; border-radius: 9px; display: grid; place-items: center; background: var(--accent); color: #fff; font-size: 11px; font-weight: 700; }
-.tripbtn b:empty { display: none; }
+.viewseg b { min-width: 18px; height: 18px; padding: 0 5px; border-radius: 9px; display: grid; place-items: center; background: var(--accent); color: #fff; font-size: 11px; font-weight: 700; }
+.viewseg b:empty { display: none; }
 /* 내 여행 화면에서는 검색 · 필터를 숨김 */
-.tripmode .filters, .tripmode #cities, .tripmode #count, .tripmode #status, .tripmode .search, .tripmode .near { display: none; }
-.tripmode .row { justify-content: flex-end; }
+.tripmode .filters, .tripmode #cities, .tripmode #count, .tripmode #status, .tripmode .searchrow { display: none; }
 .filters { display: grid; grid-template-columns: minmax(0, 1fr); gap: 10px; padding-top: 2px; }
 
 /* Segmented control */
@@ -192,7 +183,16 @@ main { padding-top: 8px; padding-bottom: 40px; min-height: 60vh; }
 .trow { position: relative; display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 12px; align-items: start; padding: 14px 12px 14px 16px; }
 .trow + .trow::before { content: ''; position: absolute; top: 0; left: 16px; right: 0; height: 1px; background: var(--line); }
 .tno { display: grid; place-items: center; width: 24px; height: 24px; margin-top: 1px; border-radius: 50%; background: var(--c); color: #fff; font-size: 12px; font-weight: 700; }
-.tpick { width: 22px; height: 22px; margin-top: 2px; accent-color: var(--accent); }
+/* 삭제 모드: 항목 전체를 눌러 고르고, 고른 항목은 흐려져 삭제 대상임을 보여 줌 */
+.editing .trow { cursor: pointer; transition: background .15s; }
+.editing .trow:hover { background: var(--fill); }
+.editing .trow .tmain { pointer-events: none; transition: opacity .2s; }
+.tcheck { display: grid; place-items: center; width: 24px; height: 24px; margin-top: 1px; border-radius: 50%; box-shadow: inset 0 0 0 1.5px var(--text-3); color: transparent; transition: background .2s, box-shadow .2s, color .2s; }
+.tcheck svg { width: 13px; height: 13px; stroke-width: 2.2; }
+.trow.sel { background: var(--accent-soft); }
+.trow.sel .tmain { opacity: .38; }
+.trow.sel .tname { text-decoration: line-through; }
+.trow.sel .tcheck { background: var(--accent); box-shadow: none; color: #fff; }
 .tname { display: block; max-width: 100%; text-align: left; font-size: 17px; font-weight: 650; line-height: 1.3; letter-spacing: -.02em; }
 .tname:active { transform: none; opacity: .5; }
 .tmain small { display: block; margin-top: 2px; font-size: 13px; color: var(--text-3); }
@@ -200,21 +200,54 @@ main { padding-top: 8px; padding-bottom: 40px; min-height: 60vh; }
 .stops.sub li { font-size: 14px; color: var(--text-2); }
 .stops.sub li.side { margin-left: 28px; font-size: 13px; }
 .stops.sub b { min-width: 19px; height: 19px; font-size: 11px; }
+.tmemo { display: block; width: 100%; margin-top: 6px; padding: 9px 12px; border: 0; outline: 0; resize: none; overflow: hidden; border-radius: 10px; background: var(--fill); color: var(--text); font: inherit; font-size: 15px; line-height: 1.5; word-break: break-word; }
+.tmemo:focus { box-shadow: 0 0 0 2px var(--accent); }
+.tmemo-ro { margin-top: 6px; font-size: 15px; line-height: 1.55; color: var(--text-2); white-space: pre-wrap; word-break: break-word; }
+.tripbar button { display: inline-flex; align-items: center; gap: 6px; }
+.tripbar button svg { width: 15px; height: 15px; stroke-width: 2.4; }
+.tripbar.main { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); }
+.tripbar.main button { justify-content: center; height: 46px; border-radius: 14px; font-size: 15px; }
+.tripbar.main button svg { width: 17px; height: 17px; stroke-width: 2; }
+.tripbar.sub { flex-wrap: nowrap; justify-content: space-between; align-items: center; margin: 6px 0 2px; }
+.tripbar.sub button { white-space: nowrap; }
+.tripbar button svg { flex: none; }
+.tripbar.main button { white-space: nowrap; }
+@media (max-width: 400px) { .tripbar.sub .long { display: none; } .tripbar.main button { font-size: 14px; gap: 5px; } }
+/* 가져오기: 버튼으로 보이게 (알약 모양 · 배경) */
+.tripbar.sub [data-act="import"] { height: 38px; padding: 0 15px 0 12px; border-radius: 19px; background: var(--fill); color: var(--text); font-size: 14px; font-weight: 600; }
+.tripbar.sub [data-act="import"]:hover { background: var(--fill-strong); }
+/* 삭제 모드: 켜고 끄는 스위치 */
+.tripbar .tswitch { flex: none; height: 38px; padding: 0 0 0 4px; gap: 7px; background: none !important; color: var(--text-2); font-size: 14px; font-weight: 600; }
+.tswitch:active { transform: none; }
+.tswitch svg { width: 16px; height: 16px; stroke-width: 1.9; }
+.tswitch .sw { position: relative; flex: none; width: 46px; height: 28px; margin-left: 2px; border-radius: 14px; background: var(--fill-strong); transition: background .25s; }
+.tswitch .sw::after { content: ''; position: absolute; top: 2px; left: 2px; width: 24px; height: 24px; border-radius: 50%; background: #fff; box-shadow: 0 2px 5px rgba(0, 0, 0, .25); transition: transform .3s var(--ease); }
+.tswitch.on { color: var(--accent); }
+.tswitch.on .sw { background: var(--accent); }
+.tswitch.on .sw::after { transform: translateX(18px); }
+.tripbar.center { justify-content: center; margin-top: -48px; padding-bottom: 60px; }
+.spin { display: inline-block; width: 16px; height: 16px; margin-right: 8px; vertical-align: -3px; border-radius: 50%; border: 2.2px solid rgba(255, 255, 255, .35); border-top-color: #fff; animation: spin .7s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+.actions button:disabled { opacity: .75; cursor: default; }
+.flabel { display: block; margin-top: 12px; font-size: 13px; font-weight: 600; color: var(--text-2); }
+.field { display: block; width: 100%; height: 46px; margin-top: 6px; padding: 0 14px; border: 0; outline: 0; border-radius: 13px; background: var(--fill); color: var(--text); font: inherit; font-size: 16px; }
+.field:focus { box-shadow: 0 0 0 2px var(--accent); }
+select.field option { background: var(--raised); color: var(--text); }
+.fcols { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
 .tnote { margin-top: 6px; font-size: 15px; color: var(--text-2); }
 .tnote b { margin-right: 8px; font-weight: 600; color: var(--text); font-variant-numeric: tabular-nums; }
-.tfields { display: grid; grid-template-columns: auto auto minmax(0, 1fr); gap: 6px; margin-top: 10px; }
+.tfields { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
 .tfields select, .tfields input { height: 36px; min-width: 0; padding: 0 10px; border: 0; outline: 0; border-radius: 10px; background: var(--fill); color: var(--text); font: inherit; font-size: 14px; }
 /* 펼친 목록은 반투명 배경을 못 쓰므로 불투명한 색을 직접 지정 (다크모드에서 밝은 글자 + 밝은 배경이 되는 문제) */
 .tfields select option { background: var(--raised); color: var(--text); }
 .tfields select:focus, .tfields input:focus { box-shadow: 0 0 0 2px var(--accent); }
-.tfields.tour { grid-template-columns: auto auto auto minmax(0, 1fr); }
 .tlabel { display: flex; align-items: center; gap: 6px; padding-left: 10px; border-radius: 10px; background: var(--fill); font-size: 13px; font-weight: 600; color: var(--text-2); }
 .tlabel input { padding-left: 2px; background: none; }
 .tlabel:focus-within { box-shadow: 0 0 0 2px var(--accent); }
 .tlabel input:focus { box-shadow: none; }
 .tlabel { min-width: 0; }
 .tlabel input { min-width: 0; width: 100%; }
-@media (max-width: 480px) { .tfields.tour { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); } .tfields.tour select { grid-column: 1 / -1; } .tlabel { gap: 4px; padding-left: 9px; } .tlabel input { padding-right: 4px; } .tlabel input::-webkit-calendar-picker-indicator { display: none; } .tfields { grid-template-columns: 1fr 1fr; } .tfields [data-memo] { grid-column: 1 / -1; } }
+@media (max-width: 480px) { .tfields select { flex: 1 1 100%; } .tlabel { flex: 1 1 0; gap: 4px; padding-left: 9px; } .tlabel input { padding-right: 4px; } .tlabel input::-webkit-calendar-picker-indicator { display: none; } }
 .thandle { width: 36px; height: 44px; margin: -4px -4px 0 0; border-radius: 10px; display: grid; place-items: center; color: var(--text-3); cursor: grab; touch-action: none; }
 .thandle svg { width: 20px; height: 20px; stroke-width: 2; }
 .thandle:hover { background: var(--fill); color: var(--text-2); }

@@ -10,6 +10,8 @@
     etc: { label: '기타', tip: '메모', color: '#8E8E93' },
   };
   const WALK_NEAR = 800, NEAR = 3000; // m
+  // 구글맵 링크 → 장소 정보 중계기(tools/resolver.gs 를 배포한 웹 앱 URL). 비어 있으면 PC용 긴 링크만 자동, 나머지는 직접 입력
+  const RESOLVER = 'https://script.google.com/macros/s/AKfycbzTd-PjfZUOjBvQG-EVo5MWPx_M9Qfm4pIIwtrcrMiMUqsM_cdYmZJACIyLh1frbmkj/exec';
 
   const $ = (id) => document.getElementById(id);
   const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -304,10 +306,9 @@
     $('list').classList.toggle('still', quiet);
     renderFilters();
     const items = renderList();
-    for (const b of $('view').children) b.classList.toggle('on', b.dataset.v === state.view);
+    for (const b of $('view').children) b.classList.toggle('on', b.dataset.v === (state.plan ? 'trip' : state.view)); // 동선 지도는 내 여행의 일부
     if (state.view !== 'map') state.plan = false;
     document.body.classList.toggle('tripmode', state.view === 'trip' || state.plan);
-    $('tripbtn').classList.toggle('on', state.view === 'trip' || state.plan);
     $('list').hidden = state.view !== 'list';
     $('map').hidden = state.view !== 'map';
     $('trip').hidden = state.view !== 'trip';
@@ -322,8 +323,13 @@
 
   // ── 내 여행: 담아 둔 장소. 이 기기의 localStorage 에만 저장. 항목 = { id, day(0=미정), time, end(투어의 도착 시간), memo }
   const TRIP_KEY = 'jt-trip';
+  const cleanCustom = (c) => (c && typeof c === 'object' ? {
+    name: String(c.name || '').slice(0, 80) || '이름 없는 장소', type: TYPES[c.type] && c.type !== 'tour' ? c.type : 'etc', city: String(c.city || '').slice(0, 20), area: String(c.area || '').slice(0, 30),
+    lat: c.lat != null && isFinite(+c.lat) ? +c.lat : null, lng: c.lng != null && isFinite(+c.lng) ? +c.lng : null,
+    map: /^https:\/\//.test(c.map) ? String(c.map).slice(0, 400) : '', address: String(c.address || '').slice(0, 160), category: String(c.category || '').slice(0, 80),
+  } : null);
   const cleanTrip = (a) => (Array.isArray(a) ? a : []).filter((x) => x && typeof x.id === 'string').slice(0, 200)
-    .map((x) => ({ id: x.id, day: Math.min(30, Math.max(0, parseInt(x.day, 10) || 0)), time: /^\d{2}:\d{2}$/.test(x.time) ? x.time : '', end: /^\d{2}:\d{2}$/.test(x.end) ? x.end : '', memo: String(x.memo || '').slice(0, 200) }));
+    .map((x) => ({ ...(x.custom ? { custom: cleanCustom(x.custom) } : {}), id: x.id, day: Math.min(30, Math.max(0, parseInt(x.day, 10) || 0)), time: /^\d{2}:\d{2}$/.test(x.time) ? x.time : '', end: /^\d{2}:\d{2}$/.test(x.end) ? x.end : '', memo: String(x.memo || '').slice(0, 1000) }));
   let trip = (() => { try { return cleanTrip(JSON.parse(localStorage.getItem(TRIP_KEY) || '[]')); } catch { return []; } })();
   const tripBadge = () => { $('tripcount').textContent = trip.length || ''; };
   const saveTrip = () => { try { localStorage.setItem(TRIP_KEY, JSON.stringify(trip)); } catch {} tripBadge(); };
@@ -331,13 +337,18 @@
   // 공유 링크에 담는 형식: [[id, day, time, memo], …] → base64url
   const encodeTrip = (list) => {
     let bin = '';
-    new TextEncoder().encode(JSON.stringify(list.map((x) => (x.end ? [x.id, x.day, x.time, x.memo, x.end] : [x.id, x.day, x.time, x.memo])))).forEach((b) => { bin += String.fromCharCode(b); });
+    new TextEncoder().encode(JSON.stringify(list.map((x) => { // 직접 추가한 장소는 정보를 통째로 담아 받는 사람에게도 보이게
+      const c = x.custom, row = [x.id, x.day, x.time, x.memo];
+      if (x.end || c) row.push(x.end || '');
+      if (c) row.push([c.name, c.type, c.city, c.area, c.lat, c.lng, c.map, c.address, c.category]);
+      return row;
+    }))).forEach((b) => { bin += String.fromCharCode(b); });
     return btoa(bin).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
   };
   const decodeTrip = (s) => {
     try {
       const bytes = Uint8Array.from(atob(s.replace(/-/g, '+').replace(/_/g, '/')), (c) => c.charCodeAt(0));
-      return cleanTrip(JSON.parse(new TextDecoder().decode(bytes)).map(([id, day, time, memo, end]) => ({ id, day, time, memo, end })));
+      return cleanTrip(JSON.parse(new TextDecoder().decode(bytes)).map(([id, day, time, memo, end, c]) => ({ id, day, time, memo, end, ...(Array.isArray(c) ? { custom: { name: c[0], type: c[1], city: c[2], area: c[3], lat: c[4], lng: c[5], map: c[6], address: c[7], category: c[8] } } : {}) })));
     } catch { return null; }
   };
   const curTrip = () => state.shared || trip; // 공유받은 여행을 보는 중이면 그것(읽기 전용)
@@ -347,7 +358,7 @@
   // 동선 지도용: 일차마다 코스 하나. 투어는 첫 번째 관광지 자리에 핀 하나로만 표시 (코스 전체를 그리면 내 동선과 헷갈림)
   const tripRoutes = () => tripDays(curTrip()).map(([d, xs], i) => ({
     id: 'day' + d, name: dayLabel(d), tags: [dayLabel(d)], color: ROUTE_COLORS[i % ROUTE_COLORS.length],
-    stops: xs.map((x) => PLACES.find((p) => p.id === x.id)).filter(Boolean).map((p) => {
+    stops: xs.map(placeOf).filter(Boolean).map((p) => {
       if (hasSpot(p)) return { name: p.name, lat: p.lat, lng: p.lng, open: p.id };
       const first = (p.stops || []).find((s) => !s.role) || (p.stops || [])[0];
       return first && { name: (p.tags || [])[0] || p.name, lat: first.lat, lng: first.lng, open: p.id, tour: first.name };
@@ -382,51 +393,158 @@
     }
   };
 
+  // ── 내 여행에 직접 추가한 장소 (구글맵 링크로). 데이터는 항목의 custom 안에 통째로 들어 있어 공유 링크로도 그대로 전달됨
+  const placeOf = (x) => (x.custom ? { id: x.id, tags: [], ...x.custom, custom: true } : PLACES.find((p) => p.id === x.id));
+  const findPlace = (id) => PLACES.find((p) => p.id === id) || (() => { const x = [...curTrip(), ...trip].find((y) => y.id === id && y.custom); return x && placeOf(x); })();
+  const CITY_WORDS = [['오사카', /osaka|오사카|大阪/i], ['교토', /kyoto|교토|京都/i], ['고베', /kobe|고베|神戸/i], ['나라', /\bnara\b|나라[현시]|奈良/i], ['도쿄', /tokyo|도쿄|東京/i], ['요코하마', /yokohama|요코하마|横浜/i],
+    ['후쿠오카', /fukuoka|후쿠오카|福岡/i], ['삿포로', /sapporo|삿포로|札幌/i], ['나고야', /nagoya|나고야|名古屋/i], ['오키나와', /okinawa|오키나와|沖縄/i], ['히로시마', /hiroshima|히로시마|広島/i]];
+  // 구글의 업종 이름(한국어) → 이 사이트의 종류. 위에서부터 먼저 맞는 것
+  const CATEGORY_TYPES = [
+    ['stay', /호텔|료칸|여관|게스트 ?하우스|호스텔|숙박|리조트|펜션|민박/],
+    ['cafe', /카페|커피|디저트|베이커리|제과|아이스크림|찻집|빵집|도넛|케이크/],
+    ['sight', /관광|명소|신사|사찰|사원|절$|성곽|^성$|공원|박물관|미술관|전망|타워|정원|온천|테마|유원지|랜드마크|다리|유적|수족관|동물원|해변|폭포/],
+    ['shop', /상점|매장|쇼핑|백화점|마트|스토어|가게|쇼핑몰|시장|편의점|드러그|약국|서점|잡화|화장품|의류|기념품|완구|전자제품|면세/],
+    ['food', /식당|음식|레스토랑|전문점|이자카야|라멘|스시|초밥|야키|우동|소바|술집|주점|비스트로|요리|고기|뷔페|푸드/],
+  ];
+  const guessCustom = (info, url) => {
+    const at = info.lat != null && isFinite(+info.lat) ? { lat: +(+info.lat).toFixed(6), lng: +(+info.lng).toFixed(6) } : { lat: null, lng: null };
+    const near = at.lat == null ? null : PLACES.filter(hasSpot).map((p) => [meters(p, at), p]).sort((a, b) => a[0] - b[0])[0];
+    const text = `${info.category || ''} ${info.name || ''}`;
+    return {
+      name: info.name || '', type: (CATEGORY_TYPES.find(([, re]) => re.test(info.category || '')) || CATEGORY_TYPES.find(([, re]) => re.test(text)) || ['etc'])[0],
+      city: (CITY_WORDS.find(([, re]) => re.test(info.address || '')) || [])[0] || (near && near[0] < 30000 ? near[1].city : ''),
+      area: near && near[0] < 700 ? near[1].area : '', ...at, map: url, address: (info.address || '').replace(/^일본\s*/, ''), category: info.category || '',
+    };
+  };
+  // PC 주소창의 긴 링크는 이름과 좌표가 주소 안에 있어 그대로 읽음
+  const parseMapUrl = (url) => {
+    const at = url.match(/!3d(-?\d+\.\d+)!4d(-?\d+\.\d+)/) || url.match(/@(-?\d+\.\d+),(-?\d+\.\d+)/);
+    const name = (url.match(/\/maps\/place\/([^/@?]+)/) || [])[1];
+    if (!at || !name) return null;
+    try { return { name: decodeURIComponent(name).replace(/\+/g, ' ').split(',')[0].trim(), lat: at[1], lng: at[2] }; } catch { return null; }
+  };
+  const customForm = (c) => `
+    <label class="flabel">이름<input class="field" data-c="name" value="${esc(c.name)}" maxlength="80" placeholder="가게 · 장소 이름"></label>
+    <label class="flabel">종류<select class="field" data-c="type">${Object.keys(TYPES).filter((t) => t !== 'tour').map((t) => `<option value="${t}"${t === c.type ? ' selected' : ''}>${TYPES[t].label}</option>`).join('')}</select></label>
+    <div class="fcols"><label class="flabel">도시<input class="field" data-c="city" value="${esc(c.city)}" maxlength="20" placeholder="오사카" list="citylist"></label>
+      <label class="flabel">지역<input class="field" data-c="area" value="${esc(c.area)}" maxlength="30" placeholder="난바·도톤보리" list="arealist"></label></div>
+    <datalist id="citylist">${uniq(PLACES.map((p) => p.city)).map((v) => `<option value="${esc(v)}">`).join('')}</datalist>
+    <datalist id="arealist">${uniq(PLACES.map((p) => p.area)).map((v) => `<option value="${esc(v)}">`).join('')}</datalist>`;
+  const readForm = () => Object.fromEntries([...$('sheet').querySelectorAll('[data-c]')].map((el) => [el.dataset.c, el.value.trim()]));
+
+  const showImport = () => {
+    showSheet(`<div class="grab"></div><button type="button" class="close" aria-label="닫기"><svg viewBox="0 0 24 24"><path d="M5 5l14 14M19 5 5 19"/></svg></button>
+      <p class="kind">내 여행에 장소 추가</p><h2>목록에 없는 장소 가져오기</h2>
+      <p class="where">구글맵에서 장소를 열고 “공유 → 링크 복사”로 복사한 링크를 붙여넣어 주세요. 이름 · 종류 · 위치를 자동으로 가져오고, 담기 전에 고칠 수 있어요.</p>
+      <form data-addlink>
+        <label class="flabel">구글맵 링크<input class="field" type="url" inputmode="url" placeholder="https://maps.app.goo.gl/…" autocomplete="off"></label>
+        <div class="actions"><button type="submit" class="primary">가져오기</button></div>
+      </form>`);
+    setTimeout(() => { const i = $('sheet').querySelector('[data-addlink] input'); if (i) i.focus(); }, 350);
+  };
+  let draft = null; // 추가하려는 장소 (저장 전)
+  const showDraft = (c, note) => {
+    draft = c;
+    showSheet(`<div class="grab"></div><button type="button" class="close" aria-label="닫기"><svg viewBox="0 0 24 24"><path d="M5 5l14 14M19 5 5 19"/></svg></button>
+      <p class="kind">내 여행에 장소 추가</p><h2>${c.lat != null ? '이 정보로 담을까요?' : '장소 정보를 입력해 주세요'}</h2>
+      <p class="where">${esc(note)}</p>${customForm(c)}
+      <div class="actions"><button type="button" class="primary" data-addcustom>내 여행에 담기</button></div>`);
+  };
+  const addByLink = async (raw, btn) => {
+    const url = (raw.match(/https?:\/\/\S+/) || [])[0];
+    if (!url || !/google\.[a-z.]+\/maps|maps\.app\.goo\.gl|goo\.gl\/maps|maps\.google\./.test(url)) return toast('구글맵 링크를 붙여넣어 주세요');
+    let info = parseMapUrl(url);
+    if (!info && RESOLVER) {
+      btn.disabled = true; btn.innerHTML = '<span><i class="spin"></i>가져오는 중…</span>';
+      try { const j = await (await fetch(`${RESOLVER}?url=${encodeURIComponent(url)}`)).json(); if (!j.error && j.name) info = j; } catch {}
+      btn.disabled = false; btn.textContent = '가져오기';
+    }
+    if (info && info.lat != null) { // 이미 이 사이트에 있는 장소면 그걸 담음 (팁까지 보이도록)
+      const saved = PLACES.filter(hasSpot).find((p) => meters(p, { lat: +info.lat, lng: +info.lng }) < 40);
+      if (saved) { if (!inTrip(saved.id)) { trip = [...trip, { id: saved.id, day: 0, time: '', end: '', memo: '' }]; saveTrip(); } closeSheet(); render(); return toast(`“${saved.name}” — 저장된 장소로 담았어요`); }
+    }
+    const c = guessCustom(info || {}, url);
+    showDraft(c, info ? [c.category, c.address].filter(Boolean).join(' · ') || '이름과 종류를 확인해 주세요. 고칠 수 있어요.'
+      : '이 링크에서는 정보를 자동으로 가져오지 못했어요. 이름과 종류를 직접 입력해 주세요. (위치를 몰라 동선 지도에는 표시되지 않아요)');
+  };
+
+  // 직접 추가한 장소의 상세: 이름 · 종류 · 도시 · 지역을 고칠 수 있음 (공유받은 여행에서는 보기만)
+  const openCustom = (p) => {
+    state.p = p.id; writeHash();
+    const mine = !state.shared && inTrip(p.id), t = TYPES[p.type] || TYPES.etc;
+    const d = state.me && hasSpot(p) ? meters(state.me, p) : null;
+    showSheet(`<div class="grab"></div><button type="button" class="close" aria-label="닫기"><svg viewBox="0 0 24 24"><path d="M5 5l14 14M19 5 5 19"/></svg></button>
+      <p class="kind">${esc(t.label)} · 직접 추가한 장소</p><h2>${esc(p.name)}</h2>
+      <p class="where">${esc([p.city, p.area].filter(Boolean).join(' · ') || '지역 미정')}${d != null ? ` · 여기서 ${fmtDist(d)}` : ''}</p>
+      ${p.category ? `<div class="tags">${p.category.split(',').map((x) => `<span>${esc(x.trim())}</span>`).join('')}</div>` : ''}
+      ${p.address ? `<h3>주소</h3><p class="addr">${esc(p.address)}</p>` : ''}
+      ${hasSpot(p) ? '' : '<p class="addr" style="margin-top:14px">위치 정보가 없어 지도에는 표시되지 않아요.</p>'}
+      ${mine ? `<h3>정보 수정</h3>${customForm(p)}` : ''}
+      <div class="actions">
+        ${mine ? '<button type="button" class="primary" data-savecustom>수정 저장</button>' : ''}
+        ${p.map ? `<a ${mine ? '' : 'class="primary"'} href="${esc(p.map)}" target="_blank" rel="noopener">Google 지도에서 열기</a>` : ''}
+        ${hasSpot(p) ? `<a href="https://www.google.com/maps/dir/?api=1&destination=${p.lat},${p.lng}" target="_blank" rel="noopener">길찾기</a>` : ''}
+        ${mine ? '<button type="button" data-trip class="tripadd on">내 여행에서 빼기</button>' : ''}
+      </div>`);
+  };
+
+  const grow = (el) => { el.style.height = 'auto'; el.style.height = el.scrollHeight + 'px'; }; // 메모 칸은 내용만큼 늘어남
+  const ICON = {
+    pin: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 21s-6.5-5.6-6.5-10.4A6.5 6.5 0 0 1 12 4a6.5 6.5 0 0 1 6.5 6.6C18.5 15.4 12 21 12 21z"/><circle cx="12" cy="10.5" r="2.3"/></svg>',
+    share: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 15V3.5M8 7l4-4 4 4M6 11.5H5a1.5 1.5 0 0 0-1.5 1.5v6A1.5 1.5 0 0 0 5 20.5h14a1.5 1.5 0 0 0 1.5-1.5v-6a1.5 1.5 0 0 0-1.5-1.5h-1"/></svg>',
+    trash: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4.5 7h15M9.5 7V5.2A1.2 1.2 0 0 1 10.7 4h2.600a1.2 1.2 0 0 1 1.2 1.2V7M6.5 7l.8 11.400A1.7 1.7 0 0 0 9 20h6a1.7 1.7 0 0 0 1.7-1.600L17.5 7M10 11v5M14 11v5"/></svg>',
+  };
+  const IMPORT_BTN = '<button type="button" data-act="import"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg><span><span class="long">목록에 없는 </span>장소 가져오기</span></button>';
   let editing = false;
   const picked = new Set();
   const renderTrip = () => {
-    const ro = !!state.shared, list = curTrip().filter((x) => PLACES.some((p) => p.id === x.id));
+    const ro = !!state.shared, list = curTrip().filter(placeOf);
     const lost = curTrip().length - list.length;
     const dayOptions = (d) => Array.from({ length: 15 }, (_, i) => `<option value="${i}"${i === d ? ' selected' : ''}>${dayLabel(i)}</option>`).join('');
     const row = (x, n, first, last, color) => { // color: 동선 지도와 같은 일차별 색
-      const p = PLACES.find((q) => q.id === x.id), t = TYPES[p.type] || TYPES.etc, tour = p.type === 'tour';
-      return `<div class="trow" data-id="${esc(x.id)}">
-        ${editing ? `<input type="checkbox" class="tpick" data-pick ${picked.has(x.id) ? 'checked' : ''} aria-label="선택">` : `<span class="tno" style="--c:${color}">${n}</span>`}
+      const p = placeOf(x), t = TYPES[p.type] || TYPES.etc, tour = p.type === 'tour';
+      return `<div class="trow${editing && picked.has(x.id) ? ' sel' : ''}" data-id="${esc(x.id)}"${editing ? ` role="checkbox" aria-checked="${picked.has(x.id)}" tabindex="0"` : ''}>
+        ${editing ? `<span class="tcheck">${ICON.trash}</span>` : `<span class="tno" style="--c:${color}">${n}</span>`}
         <div class="tmain">
           <button type="button" class="tname" data-open>${p.pick ? STAR : ''}${esc(p.name)}</button>
           <small>${esc([t.label, p.city, p.area].filter(Boolean).join(' · '))}</small>
           ${p.stops ? stopsHTML(p, 'sub') : ''}
-          ${ro ? (x.time || x.end || x.memo ? `<p class="tnote">${x.time || x.end ? `<b>${esc([x.time && (tour ? '출발 ' : '') + x.time, x.end && '도착 ' + x.end].filter(Boolean).join(' – '))}</b>` : ''}${esc(x.memo)}</p>` : '') : `<div class="tfields${tour ? ' tour' : ''}">
+          ${ro ? `${x.time || x.end ? `<p class="tnote"><b>${esc([x.time && (tour ? '출발 ' : '') + x.time, x.end && '도착 ' + x.end].filter(Boolean).join(' – '))}</b></p>` : ''}${x.memo ? `<p class="tmemo-ro">${esc(x.memo)}</p>` : ''}` : `<div class="tfields${tour ? ' tour' : ''}">
             <select data-day aria-label="일차">${dayOptions(x.day)}</select>
             ${tour ? `<label class="tlabel">출발<input type="time" data-time value="${esc(x.time)}" aria-label="출발 시간"></label><label class="tlabel">도착<input type="time" data-end value="${esc(x.end)}" aria-label="도착 시간"></label>` : `<input type="time" data-time value="${esc(x.time)}" aria-label="시간">`}
-            <input type="text" data-memo value="${esc(x.memo)}" placeholder="메모" maxlength="200" aria-label="메모">
-          </div>`}
+          </div>
+          <textarea class="tmemo" data-memo rows="1" maxlength="1000" placeholder="메모" aria-label="메모">${esc(x.memo)}</textarea>`}
         </div>
         ${ro || editing ? '' : dragReady !== false ? `<button type="button" class="thandle" aria-label="끌어서 순서 · 일차 바꾸기"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 8h14M5 12h14M5 16h14"/></svg></button>` : `<div class="tmove"><button type="button" data-up ${first ? 'disabled' : ''} aria-label="위로">▲</button><button type="button" data-down ${last ? 'disabled' : ''} aria-label="아래로">▼</button></div>`}
       </div>`;
     };
+    $('trip').classList.toggle('editing', editing);
     $('trip').innerHTML = `
-      <div class="triphead"><h2>${ro ? '공유받은 여행' : '내 여행'}</h2><span>${list.length ? countText(list.map((x) => PLACES.find((p) => p.id === x.id))) : ''}</span></div>
+      <div class="triphead"><h2>${ro ? '공유받은 여행' : '내 여행'}</h2><span>${list.length ? countText(list.map(placeOf)) : ''}</span></div>
       ${ro ? `<div class="sharedbox"><p>공유 링크로 받은 여행 코스예요. 복사하면 일차 · 시간 · 메모까지 그대로 내 여행에 담기고, 자유롭게 고칠 수 있어요.</p>
         <div class="tripbar"><button type="button" class="fill" data-act="copy">내 여행으로 복사</button><button type="button" data-act="closeshared">닫기</button></div></div>` : ''}
       ${lost ? `<p class="status">목록에서 사라진 장소 ${lost}곳은 표시하지 않았어요.</p>` : ''}
-      ${!list.length ? `<p class="empty">아직 담은 장소가 없어요.<br>장소를 열고 “내 여행에 담기”를 눌러보세요.</p>` : `
-        <div class="tripbar">
-          <button type="button" class="fill" data-act="map">동선 지도로 보기</button>
-          ${ro ? '' : `<button type="button" data-act="share">공유 링크</button><button type="button" data-act="edit" class="${editing ? 'on' : ''}">${editing ? '완료' : '선택 · 삭제'}</button>`}
+      ${!list.length ? `<p class="empty">아직 담은 장소가 없어요.<br>장소를 열고 “내 여행에 담기”를 눌러보세요.</p>${ro ? '' : `<div class="tripbar center">${IMPORT_BTN}</div>`}` : `
+        <div class="tripbar main">
+          <button type="button" class="fill" data-act="map">${ICON.pin}동선 지도로 보기</button>
+          ${ro ? '' : `<button type="button" data-act="share">${ICON.share}공유 링크</button>`}
         </div>
-        ${tripDays(list).map(([d, xs], di) => `<section class="grp"><header><h2>${dayLabel(d)}</h2><span>${countText(xs.map((x) => PLACES.find((p) => p.id === x.id)))}</span></header>
+        ${ro ? '' : `<div class="tripbar sub">${IMPORT_BTN}<button type="button" role="switch" aria-checked="${editing}" data-act="edit" class="tswitch${editing ? ' on' : ''}">${ICON.trash}삭제 모드<i class="sw"></i></button></div>`}
+        ${tripDays(list).map(([d, xs], di) => `<section class="grp"><header><h2>${dayLabel(d)}</h2><span>${countText(xs.map(placeOf))}</span></header>
           <div class="card tcard" data-day="${d}">${xs.map((x, i) => row(x, i + 1, i === 0, i === xs.length - 1, ROUTE_COLORS[di % ROUTE_COLORS.length])).join('')}</div></section>`).join('')}
         ${ro || editing || dragReady === false ? '' : (() => { const next = Math.min(14, Math.max(0, ...list.map((x) => x.day)) + 1); return list.some((x) => x.day === next) ? '' : `<section class="grp newday"><header><h2>${dayLabel(next)}</h2></header><div class="card tcard" data-day="${next}"><p class="drophint">여기로 끌어다 놓으면 ${dayLabel(next)}가 돼요</p></div></section>`; })()}
         ${editing ? `<div class="tripedit"><button type="button" data-act="delpicked" ${picked.size ? '' : 'disabled'}>선택 삭제${picked.size ? ` (${picked.size})` : ''}</button><button type="button" data-act="delall">전체 삭제</button></div>` : ''}`}`;
+    $('trip').querySelectorAll('.tmemo').forEach(grow);
     if (!ro && !editing && list.length) enableDrag();
   };
 
+  $('sheet').addEventListener('submit', (e) => { e.preventDefault(); const f = e.target.closest('[data-addlink]'); if (f) addByLink(f.querySelector('input').value, f.querySelector('button[type=submit]')); });
   const tripItem = (el) => trip.find((x) => x.id === el.closest('.trow').dataset.id);
   $('trip').addEventListener('click', (e) => {
     const act = (e.target.closest('[data-act]') || {}).dataset?.act, rowEl = e.target.closest('.trow');
     if (act === 'map') { state.plan = true; state.view = 'map'; render(); return window.scrollTo({ top: $('bar').offsetTop, behavior: 'smooth' }); }
     if (act === 'share') return share('일본 여행 코스', location.origin + location.pathname + '#trip=' + encodeTrip(trip));
+    if (act === 'import') return showImport();
     if (act === 'edit') { editing = !editing; picked.clear(); return renderTrip(); }
     if (act === 'delpicked') { trip = trip.filter((x) => !picked.has(x.id)); picked.clear(); if (!trip.length) editing = false; saveTrip(); return renderTrip(); }
     if (act === 'delall') { if (!confirm('내 여행에 담은 장소를 모두 삭제할까요?')) return; trip = []; picked.clear(); editing = false; saveTrip(); return renderTrip(); }
@@ -438,6 +556,7 @@
         <div class="actions"><button type="button" class="primary" data-copy="append">기존 여행 뒤에 추가</button><button type="button" data-copy="replace" style="grid-column:1/-1">기존 여행을 지우고 이 코스로 대체</button></div>`);
     }
     if (!rowEl) return;
+    if (editing) { const id = rowEl.dataset.id; picked.has(id) ? picked.delete(id) : picked.add(id); return renderTrip(); } // 삭제 모드: 항목 어디를 눌러도 삭제 대상으로 고르기/풀기
     if (e.target.closest('[data-open]')) return openSheet(rowEl.dataset.id);
     const dir = e.target.closest('[data-up]') ? -1 : e.target.closest('[data-down]') ? 1 : 0;
     if (dir) { // 같은 일차 안에서 앞뒤 항목과 자리를 바꿈
@@ -449,13 +568,12 @@
     }
   });
   $('trip').addEventListener('change', (e) => {
-    if (e.target.matches('[data-pick]')) { const id = e.target.closest('.trow').dataset.id; e.target.checked ? picked.add(id) : picked.delete(id); return renderTrip(); }
     const x = tripItem(e.target); if (!x) return;
     if (e.target.matches('[data-day]')) { x.day = +e.target.value; trip = [...trip.filter((y) => y !== x), x]; saveTrip(); return renderTrip(); } // 옮긴 일차의 맨 뒤로
     if (e.target.matches('[data-time]')) { x.time = e.target.value; saveTrip(); }
     if (e.target.matches('[data-end]')) { x.end = e.target.value; saveTrip(); }
   });
-  $('trip').addEventListener('input', (e) => { if (e.target.matches('[data-memo]')) { tripItem(e.target).memo = e.target.value; saveTrip(); } }); // 입력 중에는 다시 그리지 않음(포커스 유지)
+  $('trip').addEventListener('input', (e) => { if (e.target.matches('[data-memo]')) { tripItem(e.target).memo = e.target.value; saveTrip(); grow(e.target); } }); // 입력 중에는 다시 그리지 않음(포커스 유지)
   const copyShared = (mode) => {
     const add = state.shared || [];
     trip = cleanTrip(mode === 'replace' ? add : [...trip, ...add.filter((x) => !inTrip(x.id))]);
@@ -473,8 +591,9 @@
     document.body.classList.add('locked');
   };
   const openSheet = (id) => {
-    const p = PLACES.find((x) => x.id === id);
+    const p = findPlace(id);
     if (!p) return;
+    if (p.custom) return openCustom(p);
     state.p = id; writeHash();
     const t = TYPES[p.type] || { label: '', tip: '팁' };
     const d = state.me && hasSpot(p) ? meters(state.me, p) : null;
@@ -595,7 +714,6 @@
   $('areas').addEventListener('click', (e) => { state.route = ''; const b = e.target.closest('button'); if (b) { state.area = b.dataset.area; render(); } });
   $('types').addEventListener('click', (e) => { state.route = ''; const b = e.target.closest('button'); if (b) { state.type = b.dataset.type; render(); } });
   $('tags').addEventListener('click', (e) => { state.route = ''; const b = e.target.closest('button'); if (!b) return; if ('pick' in b.dataset) state.pick = !state.pick; else state.tag = state.tag === b.dataset.tag ? '' : b.dataset.tag; render(); });
-  $('tripbtn').addEventListener('click', () => { state.route = ''; state.plan = false; state.view = state.view === 'trip' ? 'list' : 'trip'; render(); window.scrollTo({ top: 0 }); });
   $('view').addEventListener('click', (e) => { state.route = '';
     const b = e.target.closest('button'); if (!b) return;
     state.plan = false;
@@ -607,9 +725,23 @@
   $('sheet').addEventListener('click', (e) => {
     if (e.target.closest('.close')) return closeSheet();
     if (e.target.closest('[data-route]')) { state.route = state.p; state.view = 'map'; closeSheet(); render(); return window.scrollTo({ top: $('bar').offsetTop, behavior: 'smooth' }); }
+    if (e.target.closest('[data-addcustom]') || e.target.closest('[data-savecustom]')) {
+      const v = readForm();
+      if (!v.name) return $('sheet').querySelector('[data-c=name]').focus();
+      if (e.target.closest('[data-addcustom]')) {
+        const c = cleanCustom({ ...draft, ...v });
+        trip = [...trip, { id: 'c' + Date.now().toString(36) + Math.random().toString(36).slice(2, 5), day: 0, time: '', end: '', memo: '', custom: c }];
+        draft = null; toast('내 여행에 담았어요');
+      } else {
+        const x = trip.find((y) => y.id === state.p); if (x) x.custom = cleanCustom({ ...x.custom, ...v });
+        toast('수정했어요');
+      }
+      saveTrip(); closeSheet(); return render();
+    }
     if (e.target.closest('[data-copy]')) return copyShared(e.target.closest('[data-copy]').dataset.copy);
     if (e.target.closest('[data-trip]')) {
       const id = state.p, had = inTrip(id);
+      if (had && trip.find((x) => x.id === id).custom) { trip = trip.filter((x) => x.id !== id); saveTrip(); closeSheet(); toast('내 여행에서 뺐어요'); return render(); } // 직접 추가한 장소는 빼면 사라짐
       trip = had ? trip.filter((x) => x.id !== id) : [...trip, { id, day: 0, time: '', end: '', memo: '' }];
       saveTrip(); toast(had ? '내 여행에서 뺐어요' : '내 여행에 담았어요');
       const b = e.target.closest('[data-trip]'); b.classList.toggle('on', !had); b.textContent = had ? '내 여행에 담기' : '✓ 내 여행에 담김 · 빼기';
@@ -617,7 +749,7 @@
       return;
     }
     if (e.target.closest('[data-share]')) {
-      const p = PLACES.find((x) => x.id === state.p);
+      const p = findPlace(state.p);
       share(`${p.name} — 일본 여행 정보`, location.origin + location.pathname + '#p=' + encodeURIComponent(p.id));
     }
   });
