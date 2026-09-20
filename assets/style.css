@@ -115,6 +115,14 @@ button:active { transform: scale(.96); }
   .near svg { width: 18px; height: 18px; }
   .viewseg button { padding: 0 11px; }
 }
+.tripbtn { position: relative; flex: none; width: 40px; height: 40px; border-radius: 12px; display: grid; place-items: center; background: var(--fill); color: var(--text-2); transition: background .2s, color .2s, transform .2s var(--ease); }
+.tripbtn svg { width: 19px; height: 19px; }
+.tripbtn.on { background: var(--text); color: var(--bg); }
+.tripbtn b { position: absolute; top: -5px; right: -5px; min-width: 18px; height: 18px; padding: 0 5px; border-radius: 9px; display: grid; place-items: center; background: var(--accent); color: #fff; font-size: 11px; font-weight: 700; }
+.tripbtn b:empty { display: none; }
+/* 내 여행 화면에서는 검색 · 필터를 숨김 */
+.tripmode .filters, .tripmode #cities, .tripmode #count, .tripmode #status, .tripmode .search, .tripmode .near { display: none; }
+.tripmode .row { justify-content: flex-end; }
 .filters { display: grid; grid-template-columns: minmax(0, 1fr); gap: 10px; padding-top: 2px; }
 
 /* Segmented control */
@@ -171,6 +179,65 @@ main { padding-top: 8px; padding-bottom: 40px; min-height: 60vh; }
 .pin.pick { display: grid; place-items: center; width: 26px; height: 26px; z-index: 1; box-shadow: 0 0 0 4px color-mix(in srgb, var(--c) 30%, transparent), 0 2px 8px rgba(0, 0, 0, .45); }
 .pin.pick .star { width: 13px; height: 13px; margin: 0; fill: #fff; }
 
+/* 내 여행 */
+.triphead { display: flex; align-items: baseline; justify-content: space-between; padding: 18px 4px 12px; }
+.triphead h2 { font-size: 28px; font-weight: 700; letter-spacing: -.03em; }
+.triphead span { font-size: 13px; color: var(--text-3); }
+.tripbar { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 6px; }
+.tripbar button, .tripedit button { height: 40px; padding: 0 16px; border-radius: 12px; font-size: 14px; font-weight: 600; background: var(--fill); transition: transform .2s var(--ease), background .2s; }
+.tripbar .fill { background: var(--accent); color: #fff; }
+.tripbar .on { background: var(--text); color: var(--bg); }
+.sharedbox { margin-bottom: 14px; padding: 16px 18px; border-radius: 18px; background: var(--accent-soft); }
+.sharedbox p { margin-bottom: 12px; font-size: 15px; color: var(--text); }
+.trow { position: relative; display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 12px; align-items: start; padding: 14px 12px 14px 16px; }
+.trow + .trow::before { content: ''; position: absolute; top: 0; left: 16px; right: 0; height: 1px; background: var(--line); }
+.tno { display: grid; place-items: center; width: 24px; height: 24px; margin-top: 1px; border-radius: 50%; background: var(--c); color: #fff; font-size: 12px; font-weight: 700; }
+.tpick { width: 22px; height: 22px; margin-top: 2px; accent-color: var(--accent); }
+.tname { display: block; max-width: 100%; text-align: left; font-size: 17px; font-weight: 650; line-height: 1.3; letter-spacing: -.02em; }
+.tname:active { transform: none; opacity: .5; }
+.tmain small { display: block; margin-top: 2px; font-size: 13px; color: var(--text-3); }
+.stops.sub { margin: 10px 0 2px; gap: 7px; }
+.stops.sub li { font-size: 14px; color: var(--text-2); }
+.stops.sub li.side { margin-left: 28px; font-size: 13px; }
+.stops.sub b { min-width: 19px; height: 19px; font-size: 11px; }
+.tnote { margin-top: 6px; font-size: 15px; color: var(--text-2); }
+.tnote b { margin-right: 8px; font-weight: 600; color: var(--text); font-variant-numeric: tabular-nums; }
+.tfields { display: grid; grid-template-columns: auto auto minmax(0, 1fr); gap: 6px; margin-top: 10px; }
+.tfields select, .tfields input { height: 36px; min-width: 0; padding: 0 10px; border: 0; outline: 0; border-radius: 10px; background: var(--fill); color: var(--text); font: inherit; font-size: 14px; }
+/* 펼친 목록은 반투명 배경을 못 쓰므로 불투명한 색을 직접 지정 (다크모드에서 밝은 글자 + 밝은 배경이 되는 문제) */
+.tfields select option { background: var(--raised); color: var(--text); }
+.tfields select:focus, .tfields input:focus { box-shadow: 0 0 0 2px var(--accent); }
+.tfields.tour { grid-template-columns: auto auto auto minmax(0, 1fr); }
+.tlabel { display: flex; align-items: center; gap: 6px; padding-left: 10px; border-radius: 10px; background: var(--fill); font-size: 13px; font-weight: 600; color: var(--text-2); }
+.tlabel input { padding-left: 2px; background: none; }
+.tlabel:focus-within { box-shadow: 0 0 0 2px var(--accent); }
+.tlabel input:focus { box-shadow: none; }
+.tlabel { min-width: 0; }
+.tlabel input { min-width: 0; width: 100%; }
+@media (max-width: 480px) { .tfields.tour { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); } .tfields.tour select { grid-column: 1 / -1; } .tlabel { gap: 4px; padding-left: 9px; } .tlabel input { padding-right: 4px; } .tlabel input::-webkit-calendar-picker-indicator { display: none; } .tfields { grid-template-columns: 1fr 1fr; } .tfields [data-memo] { grid-column: 1 / -1; } }
+.thandle { width: 36px; height: 44px; margin: -4px -4px 0 0; border-radius: 10px; display: grid; place-items: center; color: var(--text-3); cursor: grab; touch-action: none; }
+.thandle svg { width: 20px; height: 20px; stroke-width: 2; }
+.thandle:hover { background: var(--fill); color: var(--text-2); }
+.thandle:active { transform: none; cursor: grabbing; }
+.tghost { opacity: .25; }
+.tdrag { border-radius: 16px; background: var(--raised); box-shadow: var(--shadow); opacity: .97 !important; }
+.tdrag::before { display: none; }
+.dragging { user-select: none; -webkit-user-select: none; cursor: grabbing; }
+.tcard { min-height: 56px; }
+.newday { opacity: .55; transition: opacity .2s; }
+.dragging .newday { opacity: 1; }
+.newday .tcard { background: none; box-shadow: inset 0 0 0 1.5px var(--line); }
+.dragging .newday .tcard { box-shadow: inset 0 0 0 1.5px var(--accent); }
+.drophint { padding: 17px 16px; font-size: 14px; color: var(--text-3); text-align: center; }
+.tcard .trow ~ .drophint, .tcard .drophint:not(:only-child) { display: none; }
+.tmove { display: grid; gap: 4px; }
+.tmove button { width: 32px; height: 28px; border-radius: 9px; background: var(--fill); color: var(--text-2); font-size: 10px; }
+.tmove button:disabled, .tripedit button:disabled { opacity: .3; cursor: default; }
+.tripedit { position: sticky; bottom: max(14px, env(safe-area-inset-bottom)); z-index: 6; display: flex; gap: 8px; margin-top: 18px; padding: 10px; border-radius: 18px; background: var(--bg-blur); backdrop-filter: saturate(180%) blur(20px); -webkit-backdrop-filter: saturate(180%) blur(20px); box-shadow: var(--shadow); }
+.tripedit button { flex: 1; color: var(--accent); }
+.actions .tripadd { grid-column: 1 / -1; background: var(--accent-soft); color: var(--accent); }
+.actions .tripadd.on { background: var(--fill); color: var(--text-2); }
+
 .empty { padding: 80px 0; text-align: center; color: var(--text-2); }
 
 /* Map */
@@ -181,9 +248,12 @@ main { padding-top: 8px; padding-bottom: 40px; min-height: 60vh; }
 .mk-label:active, .pin:active { transform: none; }
 .pin { padding: 0; cursor: pointer; width: 18px; height: 18px; border-radius: 50%; background: var(--c, var(--accent)); border: 2.5px solid #fff; box-shadow: 0 2px 6px rgba(0, 0, 0, .4); }
 .me { width: 18px; height: 18px; border-radius: 50%; background: #0a84ff; border: 3px solid #fff; box-shadow: 0 0 0 8px rgba(10, 132, 255, .25), 0 2px 6px rgba(0, 0, 0, .3); }
+.pin.stop.wide { width: auto; padding: 0 8px; border-radius: 13px; white-space: nowrap; }
+.pin.stop { display: grid; place-items: center; width: 24px; height: 24px; color: #fff; font-size: 12px; font-weight: 700; z-index: 1; }
 .legend { position: absolute; z-index: 3; left: 10px; right: 60px; top: 10px; display: flex; flex-wrap: wrap; gap: 6px; pointer-events: none; }
 .legend button { pointer-events: auto; display: flex; align-items: center; gap: 6px; height: 30px; padding: 0 11px 0 9px; border-radius: 15px; font-size: 12px; font-weight: 600; background: var(--bg-blur); backdrop-filter: saturate(180%) blur(14px); -webkit-backdrop-filter: saturate(180%) blur(14px); box-shadow: 0 1px 6px rgba(0, 0, 0, .14); transition: opacity .2s, transform .2s var(--ease); }
 .legend button.dim { opacity: .45; }
+.legend .clip { max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .legend i { width: 10px; height: 10px; border-radius: 50%; background: var(--c); }
 .maplibregl-map { font: inherit; }
 .maplibregl-ctrl-group { border-radius: 12px !important; overflow: hidden; box-shadow: 0 2px 10px rgba(0, 0, 0, .14) !important; }
@@ -206,6 +276,15 @@ footer { padding-top: 12px; padding-bottom: max(40px, env(safe-area-inset-bottom
 .sheet h3 { margin-top: 26px; font-size: 13px; font-weight: 600; color: var(--text-2); }
 .sheet .tiptext { margin-top: 6px; font-size: 18px; line-height: 1.55; white-space: pre-line; }
 .sheet .addr { margin-top: 6px; font-size: 15px; color: var(--text-2); word-break: normal; }
+.stops { margin: 8px 0 0; padding: 0; list-style: none; display: grid; gap: 10px; }
+.stops li { display: flex; align-items: center; gap: 10px; font-size: 16px; }
+.stops b { flex: none; display: grid; place-items: center; min-width: 22px; height: 22px; padding: 0 6px; border-radius: 11px; background: #12A5B8; color: #fff; font-size: 12px; font-weight: 700; }
+.stops b.start { background: #1FA971; }
+.stops b.end { background: #F2542D; }
+.stops b.side { background: none; box-shadow: inset 0 0 0 1.5px var(--c); color: var(--c); }
+.stops li.side { margin-left: 32px; font-size: 15px; color: var(--text-2); }
+.stops li small { font-size: 13px; color: var(--text-3); }
+.pin.stop.side { font-size: 11px; }
 .actions { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 28px; }
 .actions a, .actions button { display: grid; place-items: center; height: 50px; border-radius: 15px; font-size: 16px; font-weight: 600; text-decoration: none; background: var(--fill); color: var(--text); transition: transform .2s var(--ease); }
 .actions a:active { transform: scale(.97); }
