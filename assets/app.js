@@ -543,7 +543,7 @@
   $('trip').addEventListener('click', (e) => {
     const act = (e.target.closest('[data-act]') || {}).dataset?.act, rowEl = e.target.closest('.trow');
     if (act === 'map') { state.plan = true; state.view = 'map'; render(); return window.scrollTo({ top: $('bar').offsetTop, behavior: 'smooth' }); }
-    if (act === 'share') return share('일본 여행 코스', location.origin + location.pathname + '#trip=' + encodeTrip(trip));
+    if (act === 'share') return share('일본 또갈지도 · 여행 코스', location.origin + location.pathname + '#trip=' + encodeTrip(trip));
     if (act === 'import') return showImport();
     if (act === 'edit') { editing = !editing; picked.clear(); return renderTrip(); }
     if (act === 'delpicked') { trip = trip.filter((x) => !picked.has(x.id)); picked.clear(); if (!trip.length) editing = false; saveTrip(); return renderTrip(); }
@@ -750,7 +750,7 @@
     }
     if (e.target.closest('[data-share]')) {
       const p = findPlace(state.p);
-      share(`${p.name} — 일본 여행 정보`, location.origin + location.pathname + '#p=' + encodeURIComponent(p.id));
+      share(`${p.name} — 일본 또갈지도`, location.origin + location.pathname + '#p=' + encodeURIComponent(p.id));
     }
   });
   document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeSheet(); });
