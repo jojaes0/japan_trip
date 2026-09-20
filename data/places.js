@@ -6,6 +6,22 @@
 */
 window.PLACES = [
   {
+    "id": "1me1uvt9atlfo",
+    "name": "야키토리 카와라야",
+    "city": "오사카",
+    "area": "난바·도톤보리",
+    "type": "food",
+    "tags": [
+      "야키토리"
+    ],
+    "tip": "도톤보리 최고의 야키토리집 강추함(현지인 맛집)\n대신 재료 소진으로 일찍 마감하니 오후 9시까지는 방문할 것",
+    "address": "〒542-0084 Osaka, Chuo Ward, Souemoncho, 4−5 NBクリスタルタワ",
+    "lat": 34.66928,
+    "lng": 135.5036,
+    "map": "https://www.google.com/maps?cid=7685433727244414916",
+    "pick": true
+  },
+  {
     "id": "3hav5x7fgxlu9",
     "name": "오사카 톤테키 난바워크점",
     "city": "오사카",
@@ -52,7 +68,7 @@ window.PLACES = [
     "id": "1yadc4gdma1uw",
     "name": "엑셀시오르 카페 신사이바시점",
     "city": "오사카",
-    "area": "신사이바시",
+    "area": "난바·도톤보리",
     "type": "cafe",
     "tags": [
       "아이스크림",
@@ -100,7 +116,7 @@ window.PLACES = [
     "id": "22fkhm3djwk13",
     "name": "Iccho Higshishinsaibashi",
     "city": "오사카",
-    "area": "신사이바시",
+    "area": "난바·도톤보리",
     "type": "food",
     "tags": [],
     "tip": "",
@@ -175,7 +191,7 @@ window.PLACES = [
     "id": "1tcn697rkqhib",
     "name": "炉ばた焼 かくれ茶屋",
     "city": "오사카",
-    "area": "신사이바시",
+    "area": "난바·도톤보리",
     "type": "food",
     "tags": [
       "로바다야키",
@@ -221,7 +237,7 @@ window.PLACES = [
     "id": "1604tkv1q4c4u",
     "name": "도미 인 프리미엄 난바",
     "city": "오사카",
-    "area": "신사이바시",
+    "area": "난바·도톤보리",
     "type": "stay",
     "tags": [
       "호텔",
@@ -359,7 +375,7 @@ window.PLACES = [
     "id": "2h7we59j5zscp",
     "name": "도미 인 프리미엄 난바 아넥스 내추럴 핫 스프링",
     "city": "오사카",
-    "area": "신사이바시",
+    "area": "난바·도톤보리",
     "type": "stay",
     "tags": [
       "호텔",
@@ -512,23 +528,6 @@ window.PLACES = [
     "lat": 35.002827,
     "lng": 135.769556,
     "map": "https://www.google.com/maps?cid=5440546485563656304"
-  },
-  {
-    "id": "1me1uvt9atlfo",
-    "name": "야키토리 카와라야",
-    "city": "오사카",
-    "area": "난바·도톤보리",
-    "type": "food",
-    "tags": [
-      "야키토리",
-      "술 한잔",
-      "현지인 추천"
-    ],
-    "tip": "도톤보리 최고의 야키토리집 강추함(현지인 맛집)\n대신 재료 소진으로 일찍 마감하니 오후 9시까지는 방문할 것",
-    "address": "〒542-0084 Osaka, Chuo Ward, Souemoncho, 4−5 NBクリスタルタワ",
-    "lat": 34.66928,
-    "lng": 135.5036,
-    "map": "https://www.google.com/maps?cid=7685433727244414916"
   },
   {
     "id": "8ry40t28thpa",
