@@ -6,6 +6,45 @@
 */
 window.PLACES = [
   {
+    "id": "19k68x6pu54ki",
+    "name": "이치란 도톤보리점 별관",
+    "city": "오사카",
+    "area": "난바·도톤보리",
+    "type": "food",
+    "tags": [],
+    "tip": "",
+    "address": "1 Chome-4-16 Dotonbori, Chuo Ward, Osaka, 542-0071",
+    "lat": 34.668422,
+    "lng": 135.503224,
+    "map": "https://www.google.com/maps?cid=5996734370962942050"
+  },
+  {
+    "id": "1a4d9nzv3uovk",
+    "name": "551호라이 간사이공항점",
+    "city": "오사카",
+    "area": "기타",
+    "type": "food",
+    "tags": [],
+    "tip": "부타만(고기 만두) 맛있는 곳",
+    "address": "Terminal 1, ２階, 大阪府泉南郡田尻町泉州空港中一 関西空港旅客, Osaka 549-0011",
+    "lat": 34.435386,
+    "lng": 135.244805,
+    "map": "https://www.google.com/maps?cid=6070570560374474864"
+  },
+  {
+    "id": "u2ffihq5u9st",
+    "name": "Shinpachi Shokudō Osaka Nipponbashi",
+    "city": "오사카",
+    "area": "난바·도톤보리",
+    "type": "food",
+    "tags": [],
+    "tip": "아침 생선 정식 맛집. 연어 구이에 다진 참치 회 추가하여 간장 뿌려 먹는 것을 추천",
+    "address": "1 Chome-5-15 Nipponbashi, Chuo Ward, Osaka, 542-0073",
+    "lat": 34.667535,
+    "lng": 135.506278,
+    "map": "https://www.google.com/maps?cid=3957530597288962589"
+  },
+  {
     "id": "1eedjunar95f4",
     "name": "야키니쿠 리키마루 센니치마에점",
     "city": "오사카",
