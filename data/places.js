@@ -6,6 +6,19 @@
 */
 window.PLACES = [
   {
+    "id": "13a5o0oyjeyyv",
+    "name": "우메다 스카이 빌딩 공중정원 전망대",
+    "city": "오사카",
+    "area": "우메다",
+    "type": "sight",
+    "tags": [],
+    "tip": "야경 예쁜 전망대",
+    "address": "〒531-6039 Osaka, Kita Ward, Oyodonaka, 1 Chome−1−88 梅田スカイビル",
+    "lat": 34.705437,
+    "lng": 135.490328,
+    "map": "https://www.google.com/maps?cid=5170383595001406343"
+  },
+  {
     "id": "1a4d9nzv3uovk",
     "name": "551호라이 간사이공항점",
     "city": "오사카",
@@ -871,7 +884,7 @@ window.PLACES = [
   },
   {
     "id": "t1l2ok5m",
-    "name": "유니버셜 스튜디오 재팬",
+    "name": "유니버셜 스튜디오 재팬 입장권",
     "city": "오사카",
     "area": "티켓",
     "type": "ticket",
@@ -882,4 +895,4 @@ window.PLACES = [
     "link": "https://pkgtour.naver.com/list?destination=JPOSA0078&includeCategories=TKPS%2CGDTR&productType=TKPS&departureDate=2026.10.01.%2C2026.10.24.&adultCnt=1&nxKeyword=%EC%9C%A0%EB%8B%88%EB%B2%84%EC%85%9C+%EC%8A%A4%ED%8A%9C%EB%94%94%EC%98%A4+%EC%9E%AC%ED%8C%AC+%EC%9E%85%EC%9E%A5%EA%B6%8C"
   }
 ];
-window.SYNCED = {"maps":"2026-09-23T15:39:46.961Z","sheet":"2026-09-23T15:39:47.275Z"};
+window.SYNCED = {"maps":"2026-09-23T19:01:10.364Z","sheet":"2026-09-23T19:01:10.975Z"};
