@@ -6,6 +6,19 @@
 */
 window.PLACES = [
   {
+    "id": "1a4d9nzv3uovk",
+    "name": "551호라이 간사이공항점",
+    "city": "오사카",
+    "area": "간사이공항",
+    "type": "food",
+    "tags": [],
+    "tip": "부타만(고기 만두) 맛있는 곳",
+    "address": "Terminal 1, ２階, 大阪府泉南郡田尻町泉州空港中一 関西空港旅客, Osaka 549-0011",
+    "lat": 34.435386,
+    "lng": 135.244805,
+    "map": "https://www.google.com/maps?cid=6070570560374474864"
+  },
+  {
     "id": "19k68x6pu54ki",
     "name": "이치란 도톤보리점 별관",
     "city": "오사카",
@@ -17,19 +30,6 @@ window.PLACES = [
     "lat": 34.668422,
     "lng": 135.503224,
     "map": "https://www.google.com/maps?cid=5996734370962942050"
-  },
-  {
-    "id": "1a4d9nzv3uovk",
-    "name": "551호라이 간사이공항점",
-    "city": "오사카",
-    "area": "기타",
-    "type": "food",
-    "tags": [],
-    "tip": "부타만(고기 만두) 맛있는 곳",
-    "address": "Terminal 1, ２階, 大阪府泉南郡田尻町泉州空港中一 関西空港旅客, Osaka 549-0011",
-    "lat": 34.435386,
-    "lng": 135.244805,
-    "map": "https://www.google.com/maps?cid=6070570560374474864"
   },
   {
     "id": "u2ffihq5u9st",
