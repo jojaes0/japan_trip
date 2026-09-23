@@ -126,11 +126,18 @@ async function resolveStop(line) {
   }
 }
 
-async function fetchTours(sheetId) {
-  const res = await fetch(`https://docs.google.com/spreadsheets/d/${sheetId}/export?format=csv`, { headers: { 'user-agent': UA } });
+// 시트의 탭을 이름으로 읽음 (순서를 바꿔도 됨). 없는 이름을 주면 구글이 첫 탭을 돌려주므로 머리글로 맞는 탭인지 확인
+async function fetchTab(sheetId, tab, mustHave) {
+  const res = await fetch(`https://docs.google.com/spreadsheets/d/${sheetId}/gviz/tq?tqx=out:csv&sheet=${encodeURIComponent(tab)}`, { headers: { 'user-agent': UA } });
   const text = await res.text();
   if (!res.ok || /^\s*<(!doctype|html)/i.test(text)) throw Object.assign(new Error(`시트 응답 ${res.status} (공유 설정이 "링크가 있는 모든 사용자"인지 확인)`), { temporary: true });
   const [head, ...rows] = parseCSV(text);
+  if (!head.some((h) => h.trim() === mustHave)) throw new Error(`시트에 "${tab}" 탭이 없거나 "${mustHave}" 열이 없습니다`);
+  return [head, rows];
+}
+
+async function fetchTours(sheetId, tab = '투어') {
+  const [head, rows] = await fetchTab(sheetId, tab, '투어명');
   const col = (row, ...names) => { const i = head.findIndex((h) => names.includes(h.trim())); return i < 0 ? '' : (row[i] || '').replace(/\s+/g, ' ').trim(); };
   const rawCol = (row, name) => { const i = head.findIndex((h) => h.trim() === name); return i < 0 ? '' : row[i] || ''; };
   const tours = rows.map((row) => {
@@ -155,6 +162,20 @@ async function fetchTours(sheetId) {
   return tours;
 }
 
+// ── 티켓: 시트의 "티켓" 탭 — 열: 주소 · 티켓명 · 종류 · 참고사항 · 도시 (티켓명만 필수). 좌표가 없어 지도에는 나오지 않음
+async function fetchTickets(sheetId, tab = '티켓') {
+  const [head, rows] = await fetchTab(sheetId, tab, '티켓명');
+  const col = (row, ...names) => { const i = head.findIndex((h) => names.includes(h.trim())); return i < 0 ? '' : (row[i] || '').trim(); };
+  return rows.map((row) => {
+    const link = col(row, '주소', '링크', 'URL'), name = col(row, '티켓명', '이름'), note = col(row, '참고사항', '메모', '팁'), kind = col(row, '종류');
+    if (!name) return null;
+    return {
+      id: hashId('ticket:' + (link || name)), name, city: col(row, '도시') || firstCity(`${name} ${note}`) || '공통', area: '티켓', type: 'ticket',
+      tags: kind ? [kind] : [], tip: note.replace(/\s*\n\s*/g, '\n'), link,
+    };
+  }).filter(Boolean);
+}
+
 // 코멘트에서 #태그 / @지역 을 떼어내고 나머지를 팁으로
 function parseNote(note) {
   const tags = [], out = { tip: '' };
@@ -172,14 +193,16 @@ function parseNote(note) {
 }
 
 const lists = await readJSON('data/lists.json', []);
+const synced = await readJSON('data/sync.json', {}); // 마지막 성공 시각 (사이트 하단에 표시)
 const areaBook = await readJSON('data/areas.json', []); // 지역 사전: 동네별 중심 좌표와 반경
 
-let prevIds = new Set(), prevTours = [];
+let prevIds = new Set(), prevTours = [], prevTickets = [];
 try {
   const ctx = { window: {} };
   vm.runInNewContext(await readFile(new URL('data/places.js', ROOT), 'utf8'), ctx);
   prevIds = new Set(ctx.window.PLACES.map((p) => p.id));
   prevTours = JSON.parse(JSON.stringify(ctx.window.PLACES.filter((p) => p.type === 'tour' && p.lat == null)));
+  prevTickets = JSON.parse(JSON.stringify(ctx.window.PLACES.filter((p) => p.type === 'ticket')));
 } catch {}
 
 const raw = new Map();
@@ -192,6 +215,7 @@ for (const list of lists.filter((l) => l.url)) {
     process.exit(0);
   }
   console.log(`${list.url} → ${rows.length}곳`);
+  synced.maps = new Date().toISOString();
   for (const r of rows) if (!raw.has(r.id)) raw.set(r.id, { ...r, defaultType: list.defaultType });
 }
 // 구글 쪽 응답이 이상하면 기존 데이터를 지키기 위해 중단
@@ -235,10 +259,18 @@ for (const r of raw.values()) {
 // 투어 시트. 시트를 못 읽은 회차에는 지난번 투어를 그대로 유지
 let tours = [];
 for (const list of lists.filter((l) => l.sheet)) {
-  try { const t = await fetchTours(list.sheet); console.log(`시트 ${list.name || list.sheet} → 투어 ${t.length}건`); tours.push(...t); }
+  try { const t = await fetchTours(list.sheet, list.tab || '투어'); console.log(`시트 ${list.name || list.sheet} → 투어 ${t.length}건`); tours.push(...t); synced.sheet = new Date().toISOString(); }
   catch (e) { console.log(`::warning::투어 시트 건너뜀 — ${e.message}. 기존 투어를 유지합니다.`); tours = prevTours; break; }
 }
 places.push(...tours);
+
+// 티켓 탭 (같은 시트). 탭이 아직 없으면 조용히 건너뜀
+let tickets = [];
+for (const list of lists.filter((l) => l.sheet)) {
+  try { const t = await fetchTickets(list.sheet, list.ticketTab || '티켓'); console.log(`시트 ${list.ticketTab || '티켓'} → 티켓 ${t.length}건`); tickets.push(...t); }
+  catch (e) { if (!/탭이 없거나/.test(e.message)) console.log(`::warning::티켓 탭 건너뜀 — ${e.message}. 기존 티켓을 유지합니다.`); tickets = prevTickets; break; }
+}
+places.push(...tickets);
 await writeFile(new URL('data/stops-cache.json', ROOT), JSON.stringify(stopCache, null, 2) + '\n');
 
 const head = `/*
@@ -248,7 +280,8 @@ const head = `/*
   · 투어                  : 구글 시트 (data/lists.json 의 sheet)
 */
 `;
-await writeFile(new URL('data/places.js', ROOT), `${head}window.PLACES = ${JSON.stringify(places, null, 2)};\n`);
+await writeFile(new URL('data/places.js', ROOT), `${head}window.PLACES = ${JSON.stringify(places, null, 2)};\nwindow.SYNCED = ${JSON.stringify(synced)};\n`);
+await writeFile(new URL('data/sync.json', ROOT), JSON.stringify(synced) + '\n');
 console.log(`총 ${places.length}곳 저장, 새로 자동 분류된 장소 ${review.length}곳`);
 
 if (review.length) {

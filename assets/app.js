@@ -7,6 +7,7 @@
     stay: { label: '숙소', tip: '숙소 메모', color: '#5B5BD6' },
     sight: { label: '관광지', tip: '관광 팁', color: '#1FA971' },
     tour: { label: '투어', tip: '투어 정보', color: '#12A5B8' },
+    ticket: { label: '티켓', tip: '참고사항', color: '#E0A100' },
     etc: { label: '기타', tip: '메모', color: '#8E8E93' },
   };
   const WALK_NEAR = 800, NEAR = 3000; // m
@@ -26,7 +27,8 @@
     state.view = ['map', 'trip'].includes(h.get('view')) ? h.get('view') : 'list';
     state.plan = h.get('plan') === '1' && state.view === 'map';
     state.shared = h.get('trip') ? decodeTrip(h.get('trip')) : null;
-    if (state.shared && !h.get('view')) state.view = 'trip'; // 공유 링크로 들어오면 받은 여행부터
+    state.sharedId = h.get('t') || ''; // 짧은 공유 링크: 시트에서 최신 일정을 받아 옴
+    if ((state.shared || state.sharedId) && !h.get('view')) state.view = 'trip'; // 공유 링크로 들어오면 받은 여행부터
     state.pick = h.get('pick') === '1';
   };
   const hashFor = (s) => {
@@ -35,7 +37,7 @@
     if (s.pick) h.set('pick', '1');
     if (s.view !== 'list') h.set('view', s.view);
     if (s.plan) h.set('plan', '1');
-    if (s.shared) h.set('trip', encodeTrip(s.shared));
+    if (s.sharedId) h.set('t', s.sharedId); else if (s.shared) h.set('trip', encodeTrip(s.shared));
     const str = h.toString();
     return str ? '#' + str : location.pathname + location.search;
   };
@@ -53,7 +55,7 @@
 
   const hasSpot = (p) => p.lat != null && p.lng != null; // 투어는 좌표가 없음
   // "42곳 · 투어 2개" — 투어는 장소가 아니므로 따로 셈
-  const countText = (list) => { const s = list.filter(hasSpot).length, t = list.length - s; return [s ? `${s}곳` : '', t ? `투어 ${t}개` : ''].filter(Boolean).join(' · ') || '0곳'; };
+  const countText = (list) => { list = list.filter((p) => !p.note); const s = list.filter(hasSpot).length, k = list.filter((p) => p.type === 'ticket').length, t = list.length - s - k; return [s ? `${s}곳` : '', t ? `투어 ${t}개` : '', k ? `티켓 ${k}장` : ''].filter(Boolean).join(' · ') || '0곳'; };
 
   // ── 필터
   // skip: 무시할 필터 (범례·태그 칩은 자기 자신의 필터를 빼고 후보를 계산)
@@ -124,7 +126,7 @@
     let n = 0;
     $('list').innerHTML = groups.filter((g) => g[2].length).map(([eyebrow, title, list]) => `
       <section class="grp">
-        <header>${eyebrow ? `<small>${esc(eyebrow)}</small>` : ''}<h2>${esc(title)}</h2><span>${list.every(hasSpot) ? list.length + '곳' : list.length + '개'}</span></header>
+        <header>${eyebrow ? `<small>${esc(eyebrow)}</small>` : ''}<h2>${esc(title)}</h2><span>${countText(list)}</span></header>
         <div class="card">${(state.me ? list : [...list].sort((x, y) => !!y.pick - !!x.pick)).map((p) => itemHTML(p, !!state.me, n++)).join('')}</div>
       </section>`).join('');
     return items;
@@ -329,18 +331,40 @@
     map: /^https:\/\//.test(c.map) ? String(c.map).slice(0, 400) : '', address: String(c.address || '').slice(0, 160), category: String(c.category || '').slice(0, 80),
   } : null);
   const cleanTrip = (a) => (Array.isArray(a) ? a : []).filter((x) => x && typeof x.id === 'string').slice(0, 200)
-    .map((x) => ({ ...(x.custom ? { custom: cleanCustom(x.custom) } : {}), id: x.id, day: Math.min(30, Math.max(0, parseInt(x.day, 10) || 0)), time: /^\d{2}:\d{2}$/.test(x.time) ? x.time : '', end: /^\d{2}:\d{2}$/.test(x.end) ? x.end : '', memo: String(x.memo || '').slice(0, 1000) }));
+    .map((x) => ({ ...(x.custom ? { custom: cleanCustom(x.custom) } : {}), ...(x.note ? { note: true } : {}), id: x.id, day: Math.min(30, Math.max(0, parseInt(x.day, 10) || 0)), time: /^\d{2}:\d{2}$/.test(x.time) ? x.time : '', end: /^\d{2}:\d{2}$/.test(x.end) ? x.end : '', memo: String(x.memo || '').slice(0, 1000) }));
   let trip = (() => { try { return cleanTrip(JSON.parse(localStorage.getItem(TRIP_KEY) || '[]')); } catch { return []; } })();
-  const tripBadge = () => { $('tripcount').textContent = trip.length || ''; };
-  const saveTrip = () => { try { localStorage.setItem(TRIP_KEY, JSON.stringify(trip)); } catch {} tripBadge(); };
+  const tripBadge = () => { const n = trip.filter((x) => !x.note).length; $('tripcount').textContent = n || ''; }; // 메모 항목은 개수에서 제외
+  const saveTrip = () => { try { localStorage.setItem(TRIP_KEY, JSON.stringify(trip)); } catch {} tripBadge(); queueCloud(); };
+
+  // ── 짧은 공유 링크: 내 여행에 고유 ID 를 붙이고, 바뀔 때마다 시트에 저장 (중계기 경유). 링크는 #t=ID
+  const TRIP_ID_KEY = 'jt-trip-id';
+  const newId = () => { const a = new Uint8Array(16); crypto.getRandomValues(a); return btoa(String.fromCharCode(...a)).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, ''); };
+  let tripId = (() => { try { return localStorage.getItem(TRIP_ID_KEY) || ''; } catch { return ''; } })();
+  const ensureId = () => { if (!tripId) { tripId = newId(); try { localStorage.setItem(TRIP_ID_KEY, tripId); } catch {} } return tripId; };
+  let cloudTimer, cloudBusy = false, cloudDirty = false, cloudState = ''; // '' | 'saving' | 'saved' | 'failed'
+  const setCloud = (s) => { cloudState = s; }; // 화면에는 표시하지 않음 (저장은 조용히)
+  const pushCloud = async () => {
+    if (!RESOLVER || cloudBusy) { cloudDirty = cloudDirty || cloudBusy; return; }
+    cloudBusy = true; cloudDirty = false; setCloud('saving');
+    try {
+      const r = await (await fetch(RESOLVER, { method: 'POST', body: JSON.stringify({ id: ensureId(), trip }) })).json(); // text/plain 본문 → CORS 사전 요청 없음
+      if (r.error) throw new Error(r.error);
+      setCloud('saved');
+    } catch { setCloud('failed'); cloudDirty = true; setTimeout(queueCloud, 30000); }
+    cloudBusy = false;
+    if (cloudDirty) queueCloud();
+  };
+  const queueCloud = () => { if (!RESOLVER || !trip.length && !tripId) return; clearTimeout(cloudTimer); cloudTimer = setTimeout(pushCloud, 1500); }; // 입력이 잠잠해지면 저장
+  const loadCloud = async (id) => { try { const r = await (await fetch(`${RESOLVER}?trip=${encodeURIComponent(id)}`, { cache: 'no-store' })).json(); return r.error ? null : cleanTrip(r.trip); } catch { return null; } };
   const inTrip = (id) => trip.some((x) => x.id === id);
   // 공유 링크에 담는 형식: [[id, day, time, memo], …] → base64url
   const encodeTrip = (list) => {
     let bin = '';
     new TextEncoder().encode(JSON.stringify(list.map((x) => { // 직접 추가한 장소는 정보를 통째로 담아 받는 사람에게도 보이게
       const c = x.custom, row = [x.id, x.day, x.time, x.memo];
-      if (x.end || c) row.push(x.end || '');
+      if (x.end || c || x.note) row.push(x.end || '');
       if (c) row.push([c.name, c.type, c.city, c.area, c.lat, c.lng, c.map, c.address, c.category]);
+      else if (x.note) row.push(1);
       return row;
     }))).forEach((b) => { bin += String.fromCharCode(b); });
     return btoa(bin).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
@@ -348,7 +372,7 @@
   const decodeTrip = (s) => {
     try {
       const bytes = Uint8Array.from(atob(s.replace(/-/g, '+').replace(/_/g, '/')), (c) => c.charCodeAt(0));
-      return cleanTrip(JSON.parse(new TextDecoder().decode(bytes)).map(([id, day, time, memo, end, c]) => ({ id, day, time, memo, end, ...(Array.isArray(c) ? { custom: { name: c[0], type: c[1], city: c[2], area: c[3], lat: c[4], lng: c[5], map: c[6], address: c[7], category: c[8] } } : {}) })));
+      return cleanTrip(JSON.parse(new TextDecoder().decode(bytes)).map(([id, day, time, memo, end, c]) => ({ id, day, time, memo, end, ...(c === 1 ? { note: true } : {}), ...(Array.isArray(c) ? { custom: { name: c[0], type: c[1], city: c[2], area: c[3], lat: c[4], lng: c[5], map: c[6], address: c[7], category: c[8] } } : {}) })));
     } catch { return null; }
   };
   const curTrip = () => state.shared || trip; // 공유받은 여행을 보는 중이면 그것(읽기 전용)
@@ -358,7 +382,7 @@
   // 동선 지도용: 일차마다 코스 하나. 투어는 첫 번째 관광지 자리에 핀 하나로만 표시 (코스 전체를 그리면 내 동선과 헷갈림)
   const tripRoutes = () => tripDays(curTrip()).map(([d, xs], i) => ({
     id: 'day' + d, name: dayLabel(d), tags: [dayLabel(d)], color: ROUTE_COLORS[i % ROUTE_COLORS.length],
-    stops: xs.map(placeOf).filter(Boolean).map((p) => {
+    stops: xs.map(placeOf).filter((p) => p && !p.note).map((p) => {
       if (hasSpot(p)) return { name: p.name, lat: p.lat, lng: p.lng, open: p.id };
       const first = (p.stops || []).find((s) => !s.role) || (p.stops || [])[0];
       return first && { name: (p.tags || [])[0] || p.name, lat: first.lat, lng: first.lng, open: p.id, tour: first.name };
@@ -394,7 +418,7 @@
   };
 
   // ── 내 여행에 직접 추가한 장소 (구글맵 링크로). 데이터는 항목의 custom 안에 통째로 들어 있어 공유 링크로도 그대로 전달됨
-  const placeOf = (x) => (x.custom ? { id: x.id, tags: [], ...x.custom, custom: true } : PLACES.find((p) => p.id === x.id));
+  const placeOf = (x) => (x.note ? { id: x.id, name: '메모', type: 'note', tags: [], note: true } : x.custom ? { id: x.id, tags: [], ...x.custom, custom: true } : PLACES.find((p) => p.id === x.id));
   const findPlace = (id) => PLACES.find((p) => p.id === id) || (() => { const x = [...curTrip(), ...trip].find((y) => y.id === id && y.custom); return x && placeOf(x); })();
   const CITY_WORDS = [['오사카', /osaka|오사카|大阪/i], ['교토', /kyoto|교토|京都/i], ['고베', /kobe|고베|神戸/i], ['나라', /\bnara\b|나라[현시]|奈良/i], ['도쿄', /tokyo|도쿄|東京/i], ['요코하마', /yokohama|요코하마|横浜/i],
     ['후쿠오카', /fukuoka|후쿠오카|福岡/i], ['삿포로', /sapporo|삿포로|札幌/i], ['나고야', /nagoya|나고야|名古屋/i], ['오키나와', /okinawa|오키나와|沖縄/i], ['히로시마', /hiroshima|히로시마|広島/i]];
@@ -425,7 +449,7 @@
   };
   const customForm = (c) => `
     <label class="flabel">이름<input class="field" data-c="name" value="${esc(c.name)}" maxlength="80" placeholder="가게 · 장소 이름"></label>
-    <label class="flabel">종류<select class="field" data-c="type">${Object.keys(TYPES).filter((t) => t !== 'tour').map((t) => `<option value="${t}"${t === c.type ? ' selected' : ''}>${TYPES[t].label}</option>`).join('')}</select></label>
+    <label class="flabel">종류<select class="field" data-c="type">${Object.keys(TYPES).filter((t) => t !== 'tour' && t !== 'ticket').map((t) => `<option value="${t}"${t === c.type ? ' selected' : ''}>${TYPES[t].label}</option>`).join('')}</select></label>
     <div class="fcols"><label class="flabel">도시<input class="field" data-c="city" value="${esc(c.city)}" maxlength="20" placeholder="오사카" list="citylist"></label>
       <label class="flabel">지역<input class="field" data-c="area" value="${esc(c.area)}" maxlength="30" placeholder="난바·도톤보리" list="arealist"></label></div>
     <datalist id="citylist">${uniq(PLACES.map((p) => p.city)).map((v) => `<option value="${esc(v)}">`).join('')}</datalist>
@@ -492,6 +516,7 @@
   const ICON = {
     pin: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 21s-6.5-5.6-6.5-10.4A6.5 6.5 0 0 1 12 4a6.5 6.5 0 0 1 6.5 6.6C18.5 15.4 12 21 12 21z"/><circle cx="12" cy="10.5" r="2.3"/></svg>',
     share: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 15V3.5M8 7l4-4 4 4M6 11.5H5a1.5 1.5 0 0 0-1.5 1.5v6A1.5 1.5 0 0 0 5 20.5h14a1.5 1.5 0 0 0 1.5-1.5v-6a1.5 1.5 0 0 0-1.5-1.5h-1"/></svg>',
+    note: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 4.5h11l3 3v12H5zM8.5 10h7M8.5 13.5h7M8.5 17h4"/></svg>',
     trash: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4.5 7h15M9.5 7V5.2A1.2 1.2 0 0 1 10.7 4h2.600a1.2 1.2 0 0 1 1.2 1.2V7M6.5 7l.8 11.400A1.7 1.7 0 0 0 9 20h6a1.7 1.7 0 0 0 1.7-1.600L17.5 7M10 11v5M14 11v5"/></svg>',
   };
   const IMPORT_BTN = '<button type="button" data-act="import"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg><span><span class="long">목록에 없는 </span>장소 가져오기</span></button>';
@@ -503,12 +528,14 @@
     const dayOptions = (d) => Array.from({ length: 15 }, (_, i) => `<option value="${i}"${i === d ? ' selected' : ''}>${dayLabel(i)}</option>`).join('');
     const row = (x, n, first, last, color) => { // color: 동선 지도와 같은 일차별 색
       const p = placeOf(x), t = TYPES[p.type] || TYPES.etc, tour = p.type === 'tour';
+      if (p.note) return noteRow(x, color);
       return `<div class="trow${editing && picked.has(x.id) ? ' sel' : ''}" data-id="${esc(x.id)}"${editing ? ` role="checkbox" aria-checked="${picked.has(x.id)}" tabindex="0"` : ''}>
         ${editing ? `<span class="tcheck">${ICON.trash}</span>` : `<span class="tno" style="--c:${color}">${n}</span>`}
         <div class="tmain">
           <button type="button" class="tname" data-open>${p.pick ? STAR : ''}${esc(p.name)}</button>
-          <small>${esc([t.label, p.city, p.area].filter(Boolean).join(' · '))}</small>
+          <small>${esc([t.label, p.city, p.area !== t.label ? p.area : ''].filter(Boolean).join(' · '))}</small>
           ${p.stops ? stopsHTML(p, 'sub') : ''}
+          ${p.type === 'ticket' && p.tip ? `<p class="ttip">${esc(p.tip)}</p>` : ''}
           ${ro ? `${x.time || x.end ? `<p class="tnote"><b>${esc([x.time && (tour ? '출발 ' : '') + x.time, x.end && '도착 ' + x.end].filter(Boolean).join(' – '))}</b></p>` : ''}${x.memo ? `<p class="tmemo-ro">${esc(x.memo)}</p>` : ''}` : `<div class="tfields${tour ? ' tour' : ''}">
             <select data-day aria-label="일차">${dayOptions(x.day)}</select>
             ${tour ? `<label class="tlabel">출발<input type="time" data-time value="${esc(x.time)}" aria-label="출발 시간"></label><label class="tlabel">도착<input type="time" data-end value="${esc(x.end)}" aria-label="도착 시간"></label>` : `<input type="time" data-time value="${esc(x.time)}" aria-label="시간">`}
@@ -518,10 +545,21 @@
         ${ro || editing ? '' : dragReady !== false ? `<button type="button" class="thandle" aria-label="끌어서 순서 · 일차 바꾸기"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 8h14M5 12h14M5 16h14"/></svg></button>` : `<div class="tmove"><button type="button" data-up ${first ? 'disabled' : ''} aria-label="위로">▲</button><button type="button" data-down ${last ? 'disabled' : ''} aria-label="아래로">▼</button></div>`}
       </div>`;
     };
+    const noteRow = (x, color) => `<div class="trow note${editing && picked.has(x.id) ? ' sel' : ''}" data-id="${esc(x.id)}"${editing ? ` role="checkbox" aria-checked="${picked.has(x.id)}" tabindex="0"` : ''}>
+        ${editing ? `<span class="tcheck">${ICON.trash}</span>` : `<span class="tno memo" style="--c:${color}">${ICON.note}</span>`}
+        <div class="tmain">
+          ${ro ? `${x.time ? `<p class="tnote"><b>${esc(x.time)}</b></p>` : ''}<p class="tmemo-ro">${esc(x.memo) || '<i>빈 메모</i>'}</p>` : `<div class="tfields">
+            <select data-day aria-label="일차">${dayOptions(x.day)}</select>
+            <input type="time" data-time value="${esc(x.time)}" aria-label="시간">
+          </div>
+          <textarea class="tmemo" data-memo rows="1" maxlength="1000" placeholder="메모를 적어 주세요 (예: 호텔 체크인, 환전, 짐 맡기기)" aria-label="메모">${esc(x.memo)}</textarea>`}
+        </div>
+        ${ro || editing ? '' : dragReady !== false ? `<button type="button" class="thandle" aria-label="끌어서 순서 · 일차 바꾸기"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 8h14M5 12h14M5 16h14"/></svg></button>` : ''}
+      </div>`;
     $('trip').classList.toggle('editing', editing);
     $('trip').innerHTML = `
       <div class="triphead"><h2>${ro ? '공유받은 여행' : '내 여행'}</h2><span>${list.length ? countText(list.map(placeOf)) : ''}</span></div>
-      ${ro ? `<div class="sharedbox"><p>공유 링크로 받은 여행 코스예요. 복사하면 일차 · 시간 · 메모까지 그대로 내 여행에 담기고, 자유롭게 고칠 수 있어요.</p>
+      ${ro ? `<div class="sharedbox"><p>공유 링크로 받은 여행 코스예요.${state.sharedId ? ' 링크를 열 때마다 최신 일정을 보여줘요.' : ''} 복사하면 일차 · 시간 · 메모까지 그대로 내 여행에 담기고, 자유롭게 고칠 수 있어요.</p>
         <div class="tripbar"><button type="button" class="fill" data-act="copy">내 여행으로 복사</button><button type="button" data-act="closeshared">닫기</button></div></div>` : ''}
       ${lost ? `<p class="status">목록에서 사라진 장소 ${lost}곳은 표시하지 않았어요.</p>` : ''}
       ${!list.length ? `<p class="empty">아직 담은 장소가 없어요.<br>장소를 열고 “내 여행에 담기”를 눌러보세요.</p>${ro ? '' : `<div class="tripbar center">${IMPORT_BTN}</div>`}` : `
@@ -531,7 +569,7 @@
         </div>
         ${ro ? '' : `<div class="tripbar sub">${IMPORT_BTN}<button type="button" role="switch" aria-checked="${editing}" data-act="edit" class="tswitch${editing ? ' on' : ''}">${ICON.trash}삭제 모드<i class="sw"></i></button></div>`}
         ${tripDays(list).map(([d, xs], di) => `<section class="grp"><header><h2>${dayLabel(d)}</h2><span>${countText(xs.map(placeOf))}</span></header>
-          <div class="card tcard" data-day="${d}">${xs.map((x, i) => row(x, i + 1, i === 0, i === xs.length - 1, ROUTE_COLORS[di % ROUTE_COLORS.length])).join('')}</div></section>`).join('')}
+          <div class="card tcard" data-day="${d}">${ro ? '' : `<button type="button" class="addnote" data-addnote="${d}">${ICON.note}메모 추가</button>`}${(() => { let n = 0; return xs.map((x, i) => row(x, x.note ? 0 : ++n, i === 0, i === xs.length - 1, ROUTE_COLORS[di % ROUTE_COLORS.length])).join(''); })()}</div></section>`).join('')}
         ${ro || editing || dragReady === false ? '' : (() => { const next = Math.min(14, Math.max(0, ...list.map((x) => x.day)) + 1); return list.some((x) => x.day === next) ? '' : `<section class="grp newday"><header><h2>${dayLabel(next)}</h2></header><div class="card tcard" data-day="${next}"><p class="drophint">여기로 끌어다 놓으면 ${dayLabel(next)}가 돼요</p></div></section>`; })()}
         ${editing ? `<div class="tripedit"><button type="button" data-act="delpicked" ${picked.size ? '' : 'disabled'}>선택 삭제${picked.size ? ` (${picked.size})` : ''}</button><button type="button" data-act="delall">전체 삭제</button></div>` : ''}`}`;
     $('trip').querySelectorAll('.tmemo').forEach(grow);
@@ -540,15 +578,27 @@
 
   $('sheet').addEventListener('submit', (e) => { e.preventDefault(); const f = e.target.closest('[data-addlink]'); if (f) addByLink(f.querySelector('input').value, f.querySelector('button[type=submit]')); });
   const tripItem = (el) => trip.find((x) => x.id === el.closest('.trow').dataset.id);
-  $('trip').addEventListener('click', (e) => {
+  $('trip').addEventListener('click', async (e) => {
     const act = (e.target.closest('[data-act]') || {}).dataset?.act, rowEl = e.target.closest('.trow');
     if (act === 'map') { state.plan = true; state.view = 'map'; render(); return window.scrollTo({ top: $('bar').offsetTop, behavior: 'smooth' }); }
-    if (act === 'share') return share('일본 또갈지도 · 여행 코스', location.origin + location.pathname + '#trip=' + encodeTrip(trip));
+    if (act === 'share') {
+      const base = location.origin + location.pathname;
+      if (RESOLVER && cloudState !== 'failed') { if (cloudState !== 'saved') { await pushCloud(); } if (cloudState === 'saved') return share('일본 또갈지도 · 여행 코스', base + '#t=' + ensureId()); }
+      return share('일본 또갈지도 · 여행 코스', base + '#trip=' + encodeTrip(trip)); // 시트를 못 쓰면 예전 방식(일정을 통째로 담은 긴 링크)
+    }
+    const an = e.target.closest('[data-addnote]');
+    if (an) { // 그 일차의 맨 뒤에 빈 메모 항목을 넣고 바로 입력 상태로
+      const id = 'n' + Date.now().toString(36) + Math.random().toString(36).slice(2, 5);
+      trip = [...trip, { id, note: true, day: +an.dataset.addnote, time: '', end: '', memo: '' }];
+      saveTrip(); renderTrip();
+      const ta = $('trip').querySelector(`.trow[data-id="${id}"] .tmemo`); if (ta) ta.focus();
+      return;
+    }
     if (act === 'import') return showImport();
     if (act === 'edit') { editing = !editing; picked.clear(); return renderTrip(); }
     if (act === 'delpicked') { trip = trip.filter((x) => !picked.has(x.id)); picked.clear(); if (!trip.length) editing = false; saveTrip(); return renderTrip(); }
     if (act === 'delall') { if (!confirm('내 여행에 담은 장소를 모두 삭제할까요?')) return; trip = []; picked.clear(); editing = false; saveTrip(); return renderTrip(); }
-    if (act === 'closeshared') { state.shared = null; return render(); }
+    if (act === 'closeshared') { state.shared = null; state.sharedId = ''; return render(); }
     if (act === 'copy') {
       if (!trip.length) return copyShared('replace');
       return showSheet(`<div class="grab"></div><button type="button" class="close" aria-label="닫기"><svg viewBox="0 0 24 24"><path d="M5 5l14 14M19 5 5 19"/></svg></button>
@@ -557,6 +607,7 @@
     }
     if (!rowEl) return;
     if (editing) { const id = rowEl.dataset.id; picked.has(id) ? picked.delete(id) : picked.add(id); return renderTrip(); } // 삭제 모드: 항목 어디를 눌러도 삭제 대상으로 고르기/풀기
+    if (rowEl.classList.contains('note')) return;
     if (e.target.closest('[data-open]')) return openSheet(rowEl.dataset.id);
     const dir = e.target.closest('[data-up]') ? -1 : e.target.closest('[data-down]') ? 1 : 0;
     if (dir) { // 같은 일차 안에서 앞뒤 항목과 자리를 바꿈
@@ -577,7 +628,7 @@
   const copyShared = (mode) => {
     const add = state.shared || [];
     trip = cleanTrip(mode === 'replace' ? add : [...trip, ...add.filter((x) => !inTrip(x.id))]);
-    state.shared = null; saveTrip(); closeSheet(); render(); toast('내 여행에 담았어요');
+    state.shared = null; state.sharedId = ''; saveTrip(); closeSheet(); render(); toast('내 여행에 담았어요');
   };
 
   // ── 상세 시트
@@ -604,14 +655,14 @@
       <button type="button" class="close" aria-label="닫기"><svg viewBox="0 0 24 24"><path d="M5 5l14 14M19 5 5 19"/></svg></button>
       <p class="kind">${esc(t.label)}</p>
       <h2>${p.pick ? STAR : ''}${esc(p.name)}</h2>
-      <p class="where">${esc(p.city)} · ${esc(p.area)}${p.by ? ' · ' + esc(p.by) : ''}${d != null ? ` · 여기서 ${fmtDist(d)}` : ''}</p>
+      <p class="where">${esc(p.city)}${p.area && p.area !== t.label ? ' · ' + esc(p.area) : ''}${p.by ? ' · ' + esc(p.by) : ''}${d != null ? ` · 여기서 ${fmtDist(d)}` : ''}</p>
       ${p.pick || (p.tags || []).length ? `<div class="tags">${p.pick ? `<span class="picktag">${STAR}추천</span>` : ''}${(p.tags || []).map((x) => `<span>${esc(x)}</span>`).join('')}</div>` : ''}
       ${p.tip ? `<h3>${esc(t.tip)}</h3><p class="tiptext">${esc(p.tip)}</p>` : ''}
       ${p.stops ? `<h3>코스</h3>${stopsHTML(p)}` : ''}
       ${p.address ? `<h3>주소</h3><p class="addr">${esc(p.address)}</p>` : ''}
       <div class="actions">
         ${hasSpot(p) ? `<a class="primary" href="${esc(p.map)}" target="_blank" rel="noopener">Google 지도에서 열기</a>
-        <a href="${esc(dir)}" target="_blank" rel="noopener">길찾기</a>` : p.link ? `<a class="primary" href="${esc(p.link)}" target="_blank" rel="noopener">${site ? site + '에서 보기' : '투어 페이지 열기'}</a>` : ''}
+        <a href="${esc(dir)}" target="_blank" rel="noopener">길찾기</a>` : p.link ? `<a class="primary" href="${esc(p.link)}" target="_blank" rel="noopener">${site ? site + '에서 보기' : p.type === 'ticket' ? '예약 페이지 열기' : '투어 페이지 열기'}</a>` : ''}
         ${p.stops ? '<button type="button" data-route>코스 지도로 보기</button>' : ''}
         <button type="button" data-share${hasSpot(p) || p.stops ? '' : ' style="grid-column:1/-1"'}>공유</button>
         <button type="button" data-trip class="tripadd${inTrip(p.id) ? ' on' : ''}">${inTrip(p.id) ? '✓ 내 여행에 담김 · 빼기' : '내 여행에 담기'}</button>
@@ -754,12 +805,31 @@
     }
   });
   document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeSheet(); });
-  window.addEventListener('hashchange', () => { readHash(); render(); if (state.p) openSheet(state.p); });
+  const openShared = async () => {
+    if (!state.sharedId) return;
+    if (state.sharedId === tripId) { state.sharedId = ''; state.shared = null; return render(); } // 내 링크를 내가 열면 그냥 내 여행
+    $('trip').innerHTML = '<p class="empty">공유받은 여행을 불러오는 중…</p>';
+    const t = await loadCloud(state.sharedId);
+    if (!t) { state.sharedId = ''; render(); return toast('공유 링크의 일정을 찾지 못했어요', 3000); }
+    state.shared = t; render();
+  };
+  window.addEventListener('hashchange', () => { readHash(); render(); if (state.p) openSheet(state.p); openShared(); });
   new IntersectionObserver(([en]) => $('bar').classList.toggle('stuck', en.intersectionRatio < 1), { threshold: [1], rootMargin: '-1px 0px 0px 0px' }).observe($('bar'));
 
   const syncThemeColor = () => document.querySelector('meta[name="theme-color"]').setAttribute('content', isDark() ? '#000000' : '#ffffff');
   // 지역 제목이 붙을 위치 = 상단 고정 영역의 실제 높이
   new ResizeObserver(() => document.documentElement.style.setProperty('--bar-h', $('bar').offsetHeight + 'px')).observe($('bar'));
+
+  // 하단: 구글맵 · 시트의 마지막 갱신 시각
+  const fmtSynced = (iso) => {
+    if (!iso) return '아직 없음';
+    const d = new Date(iso), min = Math.round((Date.now() - d) / 60000);
+    const when = d.toLocaleString('ko-KR', { month: 'long', day: 'numeric', hour: 'numeric', minute: '2-digit' });
+    const ago = min < 1 ? '방금' : min < 60 ? `${min}분 전` : min < 60 * 48 ? `${Math.round(min / 60)}시간 전` : `${Math.round(min / 1440)}일 전`;
+    return `${when} (${ago})`;
+  };
+  const s = window.SYNCED || {};
+  $('synced').textContent = `마지막 갱신 — 구글맵 ${fmtSynced(s.maps)} · 투어 시트 ${fmtSynced(s.sheet)}`;
 
   // ── 시작
   tripBadge();
@@ -767,5 +837,7 @@
   $('total').textContent = `${uniq(PLACES.map((p) => p.city)).join(' · ')}, ${countText(PLACES)}.`;
   readHash();
   render();
+  openShared();
+  if (trip.length && cloudState === '') queueCloud(); // 이전에 시트에 안 올라간 일정이 있으면 올림
   if (state.p) openSheet(state.p);
 })();

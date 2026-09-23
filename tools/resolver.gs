@@ -1,54 +1,109 @@
 /**
- * 구글맵 링크 → 장소 정보 중계기 (Google Apps Script)
+ * 일본 또갈지도 — 중계기 (Google Apps Script)
  *
- * "내 여행"에서 구글맵 링크를 붙여넣으면 이름 · 종류 · 주소 · 좌표를 자동으로 채우기 위한 것.
- * 브라우저는 보안 정책(CORS) 때문에 구글맵 링크를 직접 읽지 못하므로, 구글 서버에서 대신 읽어 준다.
+ * 두 가지 일을 한다.
+ *  1. 구글맵 링크 → 장소 정보 (내 여행 "목록에 없는 장소 가져오기")
+ *  2. 내 여행 일정 저장 · 조회 (짧은 공유 링크용) — 투어 시트의 "일정" 탭에 고유ID 별로 저장
  *
  * 안전장치
- *  - 구글맵 주소만 받는다 (다른 사이트를 대신 읽어 주는 용도로 쓸 수 없음)
- *  - 내 계정의 어떤 데이터(드라이브 · 메일 · 시트)도 읽거나 쓰지 않는다. 외부 주소 읽기 권한만 쓴다
- *  - 하루 DAILY_LIMIT 회를 넘으면 그날은 거절한다 (누가 마구 호출해도 구글의 무료 한도 2만 회/일에 닿지 않음)
- *  - 같은 링크는 6시간 동안 기억해 두고 다시 읽지 않는다
- *  - Apps Script 는 결제 수단이 연결되지 않는 무료 서비스라, 한도를 넘어도 요금이 나오지 않고 그날 동작만 멈춘다
+ *  - 구글맵 주소만 대신 읽는다. 내 계정의 다른 데이터(드라이브 · 메일)는 건드리지 않는다
+ *  - 일정은 SHEET_ID 시트의 "일정" 탭에만 쓴다 (없으면 만든다). 탭 구조: 고유ID | 일정(JSON) | 갱신시각 | 생성시각
+ *  - 일정 고유ID는 22자 난수라 추측할 수 없다. 같은 ID로 다시 저장하는 것만 가능 (남의 일정은 ID를 모르면 못 고침)
+ *  - 하루 DAILY_LIMIT 회를 넘으면 그날은 거절한다. Apps Script 는 결제가 없어 요금이 나올 수 없다
  *
- * 설치 (한 번, 5분)
- *  1. https://script.google.com → 새 프로젝트 → 이 파일 내용을 통째로 붙여넣기 → 저장
- *  2. 오른쪽 위 [배포] → [새 배포] → 유형: 웹 앱
- *       실행 사용자: 나 / 액세스 권한: 모든 사용자  → [배포] (처음엔 권한 승인 창이 뜸)
- *  3. 나온 "웹 앱 URL"(https://script.google.com/macros/s/…/exec)을 assets/app.js 맨 위 RESOLVER 에 넣기
- *
- * 코드를 고친 뒤에는: [배포] → [배포 관리] → 연필 아이콘 → 버전: "새 버전" → [배포]  (URL 은 그대로 유지됨)
+ * 설치 · 갱신
+ *  - 처음: https://script.google.com → 새 프로젝트 → 붙여넣기 → [배포] → [새 배포] → 웹 앱 (실행: 나 / 액세스: 모든 사용자)
+ *  - 코드를 고친 뒤: [배포] → [배포 관리] → 연필 → 버전 "새 버전" → [배포]  (URL 유지)
+ *  - 일정 저장을 처음 켤 때는 시트 권한 승인 창이 한 번 더 뜬다
  */
-var DAILY_LIMIT = 2000;
+var SHEET_ID = '1pVqDnp9qBkJyPdSGsv5_70IUaRjHG4WiqB4o55YrxkE';
+var TAB = '일정';
+var DAILY_LIMIT = 10000; // 저장 1회 ≈ 1초라 다 써도 실행 시간 무료 한도(하루 90분) 안쪽
+var MAX_TRIP_CHARS = 60000; // 일정 하나의 최대 크기 (시트 셀 한도 5만 자 안쪽으로 나눠 저장)
 var ALLOWED = /^https:\/\/(maps\.app\.goo\.gl\/|goo\.gl\/maps\/|(www\.)?google\.(com|co\.kr|co\.jp)\/maps[\/?]|maps\.google\.(com|co\.kr|co\.jp)\/)/;
 
-function doGet(e) {
-  var out = function (o) { return ContentService.createTextOutput(JSON.stringify(o)).setMimeType(ContentService.MimeType.JSON); };
+function out(o) { return ContentService.createTextOutput(JSON.stringify(o)).setMimeType(ContentService.MimeType.JSON); }
+
+function overLimit() {
+  var cache = CacheService.getScriptCache(), day = 'n:' + Utilities.formatDate(new Date(), 'Asia/Seoul', 'yyyyMMdd');
+  var used = Number(cache.get(day) || 0);
+  if (used >= DAILY_LIMIT) return true;
+  cache.put(day, String(used + 1), 21600);
+  return false;
+}
+
+// ── 1) 장소 정보
+function resolvePlace(url) {
+  url = String(url || '').slice(0, 600);
+  if (!ALLOWED.test(url)) return { error: '구글맵 링크가 아닙니다' };
+  var cache = CacheService.getScriptCache(), key = 'u:' + Utilities.base64EncodeWebSafe(Utilities.computeDigest(Utilities.DigestAlgorithm.MD5, url));
+  var hit = cache.get(key);
+  if (hit) return JSON.parse(hit);
+  if (overLimit()) return { error: '오늘 사용량을 넘었습니다' };
+  var opt = { followRedirects: true, muteHttpExceptions: true, headers: { 'Accept-Language': 'ko' } };
+  var html = UrlFetchApp.fetch(url, opt).getContentText();
+  var pv = (html.match(/\/maps\/preview\/place\?[^"\\]+/) || [])[0];
+  if (!pv) return { error: '장소 정보를 찾지 못했습니다' };
+  var text = UrlFetchApp.fetch('https://www.google.com' + pv.replace(/&amp;/g, '&'), opt).getContentText();
+  var j = JSON.parse(text.replace(/^\)\]\}'\s*/, ''));
+  var p = j[6] || [];
+  var at = (p[9] && p[9][2] != null) ? [p[9][2], p[9][3]] : [j[4][0][2], j[4][0][1]];
+  var res = { name: p[11] || '', lat: at[0], lng: at[1], category: (p[13] || []).join(', '), address: p[39] || p[18] || '' };
+  cache.put(key, JSON.stringify(res), 21600);
+  return res;
+}
+
+// ── 2) 일정 저장 · 조회
+function tab() {
+  var ss = SpreadsheetApp.openById(SHEET_ID), sh = ss.getSheetByName(TAB);
+  if (!sh) { sh = ss.insertSheet(TAB); sh.appendRow(['고유ID', '일정', '갱신시각', '생성시각']); sh.setFrozenRows(1); }
+  return sh;
+}
+function findRow(sh, id) {
+  var last = sh.getLastRow();
+  if (last < 2) return 0;
+  var ids = sh.getRange(2, 1, last - 1, 1).getValues();
+  for (var i = 0; i < ids.length; i++) if (ids[i][0] === id) return i + 2;
+  return 0;
+}
+function validId(id) { return /^[A-Za-z0-9_-]{16,32}$/.test(String(id || '')); }
+
+function loadTrip(id) {
+  if (!validId(id)) return { error: '잘못된 ID' };
+  var sh = tab(), row = findRow(sh, id);
+  if (!row) return { error: '없는 일정입니다' };
+  var v = sh.getRange(row, 2, 1, 3).getValues()[0];
+  return { id: id, trip: JSON.parse(v[0] || '[]'), updated: v[1] };
+}
+
+function saveTrip(id, tripJson) {
+  if (!validId(id)) return { error: '잘못된 ID' };
+  if (typeof tripJson !== 'string' || tripJson.length > MAX_TRIP_CHARS) return { error: '일정이 너무 큽니다' };
+  var trip = JSON.parse(tripJson);
+  if (!Array.isArray(trip)) return { error: '형식 오류' };
+  if (overLimit()) return { error: '오늘 사용량을 넘었습니다' };
+  var lock = LockService.getScriptLock(); lock.waitLock(10000);
   try {
-    var url = String((e.parameter && e.parameter.url) || '').slice(0, 600);
-    if (!ALLOWED.test(url)) return out({ error: '구글맵 링크가 아닙니다' });
+    var sh = tab(), row = findRow(sh, id), now = new Date();
+    if (row) sh.getRange(row, 2, 1, 2).setValues([[tripJson, now]]);
+    else sh.appendRow([id, tripJson, now, now]);
+  } finally { lock.releaseLock(); }
+  return { ok: true, id: id };
+}
 
-    var cache = CacheService.getScriptCache(), key = 'u:' + Utilities.base64EncodeWebSafe(Utilities.computeDigest(Utilities.DigestAlgorithm.MD5, url));
-    var hit = cache.get(key);
-    if (hit) return out(JSON.parse(hit));
+function doGet(e) {
+  try {
+    var p = e.parameter || {};
+    if (p.url) return out(resolvePlace(p.url));
+    if (p.trip) return out(loadTrip(p.trip));
+    return out({ error: '요청이 비어 있습니다' });
+  } catch (err) { return out({ error: String(err) }); }
+}
 
-    // 하루 호출 수 제한 (대략적인 집계면 충분)
-    var day = 'n:' + Utilities.formatDate(new Date(), 'Asia/Seoul', 'yyyyMMdd'), used = Number(cache.get(day) || 0);
-    if (used >= DAILY_LIMIT) return out({ error: '오늘 사용량을 넘었습니다' });
-    cache.put(day, String(used + 1), 21600); // 캐시는 최대 6시간 — 6시간 동안 조용하면 집계가 초기화되지만, 그래도 하루 최대 8천 회라 무료 한도 안쪽
-
-    var opt = { followRedirects: true, muteHttpExceptions: true, headers: { 'Accept-Language': 'ko' } };
-    var html = UrlFetchApp.fetch(url, opt).getContentText();
-    var pv = (html.match(/\/maps\/preview\/place\?[^"\\]+/) || [])[0];
-    if (!pv) return out({ error: '장소 정보를 찾지 못했습니다' });
-    var text = UrlFetchApp.fetch('https://www.google.com' + pv.replace(/&amp;/g, '&'), opt).getContentText();
-    var j = JSON.parse(text.replace(/^\)\]\}'\s*/, ''));
-    var p = j[6] || [];
-    var at = (p[9] && p[9][2] != null) ? [p[9][2], p[9][3]] : [j[4][0][2], j[4][0][1]];
-    var res = { name: p[11] || '', lat: at[0], lng: at[1], category: (p[13] || []).join(', '), address: p[39] || p[18] || '' };
-    cache.put(key, JSON.stringify(res), 21600);
-    return out(res);
-  } catch (err) {
-    return out({ error: String(err) });
-  }
+// 저장은 POST (본문: JSON {id, trip}). 브라우저의 CORS 사전 요청을 피하려고 text/plain 으로 보냄
+function doPost(e) {
+  try {
+    var body = JSON.parse((e.postData && e.postData.contents) || '{}');
+    return out(saveTrip(body.id, typeof body.trip === 'string' ? body.trip : JSON.stringify(body.trip || [])));
+  } catch (err) { return out({ error: String(err) }); }
 }

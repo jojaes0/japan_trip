@@ -856,5 +856,30 @@ window.PLACES = [
         "tag": "도착"
       }
     ]
+  },
+  {
+    "id": "t8x4nha",
+    "name": "오사카 라피트 기차 티켓",
+    "city": "간사이공항",
+    "area": "티켓",
+    "type": "ticket",
+    "tags": [
+      "기차"
+    ],
+    "tip": "1. E-Ticket으로 열차/좌석 선택 및 E-Ticket으로 QR 발권 가능함.\n2. 발권 이후 최대 2회 변경 가능함.\n3. 입국심사 끝나는 시점에 열차/좌석 선택하는 것을 추천함.",
+    "link": "https://pkgtour.naver.com/list?destination=JPOSA0001&includeCategories=TKPS%2CGDTR&productType=TKPS%2CGDTR&departureDate=2026.10.01.%2C2026.10.24.&defaultTNCode=TN14&adultCnt=1&nxKeyword=%EC%98%A4%EC%82%AC%EC%B9%B4+%EB%9D%BC%ED%94%BC%ED%8A%B8+%EC%98%88%EC%95%BD"
+  },
+  {
+    "id": "t1l2ok5m",
+    "name": "유니버셜 스튜디오 재팬",
+    "city": "오사카",
+    "area": "티켓",
+    "type": "ticket",
+    "tags": [
+      "놀이공원"
+    ],
+    "tip": "1. 입장권 온라인으로 구매 후 바우처 출력 후 가져가야 함.",
+    "link": "https://pkgtour.naver.com/list?destination=JPOSA0078&includeCategories=TKPS%2CGDTR&productType=TKPS&departureDate=2026.10.01.%2C2026.10.24.&adultCnt=1&nxKeyword=%EC%9C%A0%EB%8B%88%EB%B2%84%EC%85%9C+%EC%8A%A4%ED%8A%9C%EB%94%94%EC%98%A4+%EC%9E%AC%ED%8C%AC+%EC%9E%85%EC%9E%A5%EA%B6%8C"
   }
 ];
+window.SYNCED = {"maps":"2026-09-23T15:33:25.054Z","sheet":"2026-09-23T15:33:25.497Z"};
