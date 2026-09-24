@@ -781,6 +781,37 @@
   });
   $('list').addEventListener('click', (e) => { const b = e.target.closest('.item'); if (b) openSheet(b.dataset.id); });
   $('scrim').addEventListener('click', closeSheet);
+
+  // ── 모달을 아래로 끌어서 닫기 (휴대폰). 내용이 맨 위로 스크롤된 상태에서만 시작 — 안의 스크롤과 충돌하지 않게
+  (() => {
+    const el = $('sheet');
+    let y0 = 0, t0 = 0, dy = 0, dragging = false, pid = null;
+    const bottomSheet = () => matchMedia('(max-width: 639px)').matches; // 넓은 화면에서는 가운데 창이라 해당 없음
+    el.addEventListener('pointerdown', (e) => {
+      if (!bottomSheet() || e.pointerType === 'mouse' || el.scrollTop > 0) return;
+      if (e.target.closest('input, textarea, select, button, a')) return; // 입력칸 · 버튼은 그대로
+      y0 = e.clientY; t0 = Date.now(); dy = 0; dragging = false; pid = e.pointerId;
+    });
+    el.addEventListener('pointermove', (e) => {
+      if (pid !== e.pointerId) return;
+      const d = e.clientY - y0;
+      if (!dragging) { if (d < 8) return; dragging = true; el.classList.add('dragging'); el.setPointerCapture(pid); }
+      dy = Math.max(0, d);
+      el.style.transform = `translateY(${dy}px)`;
+      $('scrim').style.opacity = String(Math.max(0, 1 - dy / 400));
+      e.preventDefault();
+    }, { passive: false });
+    const end = (e) => {
+      if (pid !== e.pointerId) return;
+      pid = null;
+      if (!dragging) return;
+      dragging = false; el.classList.remove('dragging');
+      const fast = dy / (Date.now() - t0) > 0.6; // 빠르게 튕기면
+      el.style.transform = ''; $('scrim').style.opacity = '';
+      if (dy > 120 || (fast && dy > 30)) closeSheet();
+    };
+    el.addEventListener('pointerup', end); el.addEventListener('pointercancel', end);
+  })();
   $('sheet').addEventListener('click', (e) => {
     if (e.target.closest('.close')) return closeSheet();
     if (e.target.closest('[data-route]')) { state.route = state.p; state.view = 'map'; closeSheet(); render(); return window.scrollTo({ top: $('bar').offsetTop, behavior: 'smooth' }); }

@@ -317,6 +317,8 @@ footer { padding-top: 12px; padding-bottom: max(40px, env(safe-area-inset-bottom
 .scrim.open { opacity: 1; }
 .sheet { position: fixed; z-index: 31; left: 0; right: 0; bottom: 0; max-height: 88dvh; overflow-y: auto; overscroll-behavior: contain; margin: 0 auto; max-width: 560px; padding: 10px 24px max(24px, env(safe-area-inset-bottom)); background: var(--raised); border-radius: 28px 28px 0 0; box-shadow: var(--shadow); transform: translateY(105%); transition: transform .5s var(--ease); }
 .sheet.open { transform: none; }
+.sheet.dragging { transition: none; }
+.sheet .grab { touch-action: none; }
 .sheet .grab { width: 36px; height: 5px; border-radius: 3px; background: var(--fill-strong); margin: 0 auto 18px; }
 .sheet .close { position: absolute; top: 16px; right: 16px; width: 30px; height: 30px; border-radius: 50%; background: var(--fill); color: var(--text-2); display: grid; place-items: center; }
 .sheet .close svg { width: 14px; height: 14px; stroke-width: 2.4; }
