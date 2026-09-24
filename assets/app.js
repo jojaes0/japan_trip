@@ -335,8 +335,9 @@
     lat: c.lat != null && isFinite(+c.lat) ? +c.lat : null, lng: c.lng != null && isFinite(+c.lng) ? +c.lng : null,
     map: /^https:\/\//.test(c.map) ? String(c.map).slice(0, 400) : '', address: String(c.address || '').slice(0, 160), category: String(c.category || '').slice(0, 80),
   } : null);
+  const newKey = () => 'k' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
   const cleanTrip = (a) => (Array.isArray(a) ? a : []).filter((x) => x && typeof x.id === 'string').slice(0, 200)
-    .map((x) => ({ ...(x.custom ? { custom: cleanCustom(x.custom) } : {}), ...(x.note ? { note: true } : {}), id: x.id, day: Math.min(30, Math.max(0, parseInt(x.day, 10) || 0)), time: /^\d{2}:\d{2}$/.test(x.time) ? x.time : '', end: /^\d{2}:\d{2}$/.test(x.end) ? x.end : '', memo: String(x.memo || '').slice(0, 1000) }));
+    .map((x) => ({ k: typeof x.k === 'string' && x.k ? x.k : newKey(), ...(x.custom ? { custom: cleanCustom(x.custom) } : {}), ...(x.note ? { note: true } : {}), id: x.id, day: Math.min(30, Math.max(0, parseInt(x.day, 10) || 0)), time: /^\d{2}:\d{2}$/.test(x.time) ? x.time : '', end: /^\d{2}:\d{2}$/.test(x.end) ? x.end : '', memo: String(x.memo || '').slice(0, 1000) }));
   let trip = (() => { try { return cleanTrip(JSON.parse(localStorage.getItem(TRIP_KEY) || '[]')); } catch { return []; } })();
   const tripBadge = () => { const n = trip.filter((x) => !x.note).length; $('tripcount').textContent = n || ''; }; // 메모 항목은 개수에서 제외
   const saveTrip = () => { try { localStorage.setItem(TRIP_KEY, JSON.stringify(trip)); } catch {} tripBadge(); queueCloud(); };
@@ -362,14 +363,16 @@
   const queueCloud = () => { if (!RESOLVER || !trip.length && !tripId) return; clearTimeout(cloudTimer); cloudTimer = setTimeout(pushCloud, 1500); }; // 입력이 잠잠해지면 저장
   const loadCloud = async (id) => { try { const r = await (await fetch(`${RESOLVER}?trip=${encodeURIComponent(id)}`, { cache: 'no-store' })).json(); return r.error ? null : cleanTrip(r.trip); } catch { return null; } };
   const inTrip = (id) => trip.some((x) => x.id === id);
+  const addToTrip = (id, extra = {}) => { trip = [...trip, { k: newKey(), id, day: 0, time: '', end: '', memo: '', ...extra }]; saveTrip(); };
+  const byKey = (k) => trip.find((x) => x.k === k);
   // 공유 링크에 담는 형식: [[id, day, time, memo], …] → base64url
   const encodeTrip = (list) => {
     let bin = '';
     new TextEncoder().encode(JSON.stringify(list.map((x) => { // 직접 추가한 장소는 정보를 통째로 담아 받는 사람에게도 보이게
       const c = x.custom, row = [x.id, x.day, x.time, x.memo];
-      if (x.end || c || x.note) row.push(x.end || '');
-      if (c) row.push([c.name, c.type, c.city, c.area, c.lat, c.lng, c.map, c.address, c.category]);
-      else if (x.note) row.push(1);
+      row.push(x.end || '');
+      row.push(c ? [c.name, c.type, c.city, c.area, c.lat, c.lng, c.map, c.address, c.category] : x.note ? 1 : 0);
+      row.push(x.k);
       return row;
     }))).forEach((b) => { bin += String.fromCharCode(b); });
     return btoa(bin).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
@@ -377,7 +380,7 @@
   const decodeTrip = (s) => {
     try {
       const bytes = Uint8Array.from(atob(s.replace(/-/g, '+').replace(/_/g, '/')), (c) => c.charCodeAt(0));
-      return cleanTrip(JSON.parse(new TextDecoder().decode(bytes)).map(([id, day, time, memo, end, c]) => ({ id, day, time, memo, end, ...(c === 1 ? { note: true } : {}), ...(Array.isArray(c) ? { custom: { name: c[0], type: c[1], city: c[2], area: c[3], lat: c[4], lng: c[5], map: c[6], address: c[7], category: c[8] } } : {}) })));
+      return cleanTrip(JSON.parse(new TextDecoder().decode(bytes)).map(([id, day, time, memo, end, c, k]) => ({ id, day, time, memo, end, k, ...(c === 1 ? { note: true } : {}), ...(Array.isArray(c) ? { custom: { name: c[0], type: c[1], city: c[2], area: c[3], lat: c[4], lng: c[5], map: c[6], address: c[7], category: c[8] } } : {}) })));
     } catch { return null; }
   };
   const curTrip = () => state.shared || trip; // 공유받은 여행을 보는 중이면 그것(읽기 전용)
@@ -413,7 +416,7 @@
           document.body.classList.remove('dragging');
           const next = [];
           for (const card of document.querySelectorAll('#trip .tcard')) for (const r of card.querySelectorAll('.trow')) {
-            const x = trip.find((y) => y.id === r.dataset.id);
+            const x = byKey(r.dataset.k);
             if (x) next.push({ ...x, day: +card.dataset.day });
           }
           if (next.length === trip.length) { trip = next; saveTrip(); }
@@ -522,7 +525,8 @@
         ${mine ? '<button type="button" class="primary" data-savecustom>수정 저장</button>' : ''}
         ${p.map ? `<a ${mine ? '' : 'class="primary"'} href="${esc(p.map)}" target="_blank" rel="noopener">Google 지도에서 열기</a>` : ''}
         ${hasSpot(p) ? `<a href="https://www.google.com/maps/dir/?api=1&destination=${p.lat},${p.lng}" target="_blank" rel="noopener">길찾기</a>` : ''}
-        ${mine ? '<button type="button" data-trip class="tripadd on">내 여행에서 빼기</button>' : ''}
+        ${mine ? '<button type="button" data-trip class="tripadd">내 여행에 한 번 더 담기</button>' : ''}
+        ${mine && fromRow ? '<button type="button" data-untrip class="tripadd on">이 일정에서 빼기</button>' : ''}
       </div>`);
   };
 
@@ -543,7 +547,7 @@
     const row = (x, n, first, last, color) => { // color: 동선 지도와 같은 일차별 색
       const p = placeOf(x), t = TYPES[p.type] || TYPES.etc, tour = p.type === 'tour';
       if (p.note) return noteRow(x, color);
-      return `<div class="trow${editing && picked.has(x.id) ? ' sel' : ''}" data-id="${esc(x.id)}"${editing ? ` role="checkbox" aria-checked="${picked.has(x.id)}" tabindex="0"` : ''}>
+      return `<div class="trow${editing && picked.has(x.k) ? ' sel' : ''}" data-id="${esc(x.id)}" data-k="${esc(x.k)}"${editing ? ` role="checkbox" aria-checked="${picked.has(x.k)}" tabindex="0"` : ''}>
         ${editing ? `<span class="tcheck">${ICON.trash}</span>` : `<span class="tno" style="--c:${color}">${n}</span>`}
         <div class="tmain">
           <button type="button" class="tname" data-open>${p.pick ? STAR : ''}${esc(p.name)}</button>
@@ -559,7 +563,7 @@
         ${ro || editing ? '' : dragReady !== false ? `<button type="button" class="thandle" aria-label="끌어서 순서 · 일차 바꾸기"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 8h14M5 12h14M5 16h14"/></svg></button>` : `<div class="tmove"><button type="button" data-up ${first ? 'disabled' : ''} aria-label="위로">▲</button><button type="button" data-down ${last ? 'disabled' : ''} aria-label="아래로">▼</button></div>`}
       </div>`;
     };
-    const noteRow = (x, color) => `<div class="trow note${editing && picked.has(x.id) ? ' sel' : ''}" data-id="${esc(x.id)}"${editing ? ` role="checkbox" aria-checked="${picked.has(x.id)}" tabindex="0"` : ''}>
+    const noteRow = (x, color) => `<div class="trow note${editing && picked.has(x.k) ? ' sel' : ''}" data-id="${esc(x.id)}" data-k="${esc(x.k)}"${editing ? ` role="checkbox" aria-checked="${picked.has(x.k)}" tabindex="0"` : ''}>
         ${editing ? `<span class="tcheck">${ICON.trash}</span>` : `<span class="tno memo" style="--c:${color}">${ICON.note}</span>`}
         <div class="tmain">
           ${ro ? `${x.time ? `<p class="tnote"><b>${esc(x.time)}</b></p>` : ''}<p class="tmemo-ro">${esc(x.memo) || '<i>빈 메모</i>'}</p>` : `<div class="tfields">
@@ -591,7 +595,7 @@
   };
 
   $('sheet').addEventListener('submit', (e) => { e.preventDefault(); const f = e.target.closest('[data-addlink]'); if (f) addByLink(f.querySelector('input').value, f.querySelector('button[type=submit]')); });
-  const tripItem = (el) => trip.find((x) => x.id === el.closest('.trow').dataset.id);
+  const tripItem = (el) => byKey(el.closest('.trow').dataset.k);
   $('trip').addEventListener('click', async (e) => {
     const act = (e.target.closest('[data-act]') || {}).dataset?.act, rowEl = e.target.closest('.trow');
     if (act === 'map') { state.plan = true; state.view = 'map'; render(); return window.scrollTo({ top: $('bar').offsetTop, behavior: 'smooth' }); }
@@ -602,15 +606,15 @@
     }
     const an = e.target.closest('[data-addnote]');
     if (an) { // 그 일차의 맨 뒤에 빈 메모 항목을 넣고 바로 입력 상태로
-      const id = 'n' + Date.now().toString(36) + Math.random().toString(36).slice(2, 5);
-      trip = [...trip, { id, note: true, day: +an.dataset.addnote, time: '', end: '', memo: '' }];
+      const id = 'n' + Date.now().toString(36) + Math.random().toString(36).slice(2, 5), k = newKey();
+      trip = [...trip, { k, id, note: true, day: +an.dataset.addnote, time: '', end: '', memo: '' }];
       saveTrip(); renderTrip();
-      const ta = $('trip').querySelector(`.trow[data-id="${id}"] .tmemo`); if (ta) ta.focus();
+      const ta = $('trip').querySelector(`.trow[data-k="${k}"] .tmemo`); if (ta) ta.focus();
       return;
     }
     if (act === 'import') return showImport();
     if (act === 'edit') { editing = !editing; picked.clear(); return renderTrip(); }
-    if (act === 'delpicked') { trip = trip.filter((x) => !picked.has(x.id)); picked.clear(); if (!trip.length) editing = false; saveTrip(); return renderTrip(); }
+    if (act === 'delpicked') { trip = trip.filter((x) => !picked.has(x.k)); picked.clear(); if (!trip.length) editing = false; saveTrip(); return renderTrip(); }
     if (act === 'delall') { if (!confirm('내 여행에 담은 장소를 모두 삭제할까요?')) return; trip = []; picked.clear(); editing = false; saveTrip(); return renderTrip(); }
     if (act === 'closeshared') { state.shared = null; state.sharedId = ''; return render(); }
     if (act === 'copy') {
@@ -620,9 +624,9 @@
         <div class="actions"><button type="button" class="primary" data-copy="append">기존 여행 뒤에 추가</button><button type="button" data-copy="replace" style="grid-column:1/-1">기존 여행을 지우고 이 코스로 대체</button></div>`);
     }
     if (!rowEl) return;
-    if (editing) { const id = rowEl.dataset.id; picked.has(id) ? picked.delete(id) : picked.add(id); return renderTrip(); } // 삭제 모드: 항목 어디를 눌러도 삭제 대상으로 고르기/풀기
+    if (editing) { const k = rowEl.dataset.k; picked.has(k) ? picked.delete(k) : picked.add(k); return renderTrip(); } // 삭제 모드: 항목 어디를 눌러도 삭제 대상으로 고르기/풀기
     if (rowEl.classList.contains('note')) return;
-    if (e.target.closest('[data-open]')) return openSheet(rowEl.dataset.id);
+    if (e.target.closest('[data-open]')) { fromRow = state.shared ? '' : rowEl.dataset.k; return openSheet(rowEl.dataset.id); }
     const dir = e.target.closest('[data-up]') ? -1 : e.target.closest('[data-down]') ? 1 : 0;
     if (dir) { // 같은 일차 안에서 앞뒤 항목과 자리를 바꿈
       const me = tripItem(e.target), same = trip.filter((x) => x.day === me.day), other = same[same.indexOf(me) + dir];
@@ -641,10 +645,11 @@
   $('trip').addEventListener('input', (e) => { if (e.target.matches('[data-memo]')) { tripItem(e.target).memo = e.target.value; saveTrip(); grow(e.target); } }); // 입력 중에는 다시 그리지 않음(포커스 유지)
   const copyShared = (mode) => {
     const add = state.shared || [];
-    trip = cleanTrip(mode === 'replace' ? add : [...trip, ...add.filter((x) => !inTrip(x.id))]);
+    trip = cleanTrip(mode === 'replace' ? add : [...trip, ...add.map((x) => ({ ...x, k: '' }))]);
     state.shared = null; state.sharedId = ''; saveTrip(); closeSheet(); render(); toast('내 여행에 담았어요');
   };
 
+  let fromRow = ''; // 내 여행의 행에서 연 상세면 그 항목의 키 ("빼기" 버튼용)
   // ── 상세 시트
   let sheetOpen = false;
   const showSheet = (html) => {
@@ -679,7 +684,8 @@
         <a href="${esc(dir)}" target="_blank" rel="noopener">길찾기</a>` : p.link ? `<a class="primary" href="${esc(p.link)}" target="_blank" rel="noopener">${site ? site + '에서 보기' : p.type === 'ticket' ? '예약 페이지 열기' : '투어 페이지 열기'}</a>` : ''}
         ${p.stops ? '<button type="button" data-route>코스 지도로 보기</button>' : ''}
         <button type="button" data-share${hasSpot(p) || p.stops ? '' : ' style="grid-column:1/-1"'}>공유</button>
-        <button type="button" data-trip class="tripadd${inTrip(p.id) ? ' on' : ''}">${inTrip(p.id) ? '✓ 내 여행에 담김 · 빼기' : '내 여행에 담기'}</button>
+        <button type="button" data-trip class="tripadd">${inTrip(p.id) ? '내 여행에 한 번 더 담기' : '내 여행에 담기'}</button>
+        ${fromRow ? '<button type="button" data-untrip class="tripadd on">이 일정에서 빼기</button>' : ''}
       </div>`;
     showSheet();
   };
@@ -687,6 +693,7 @@
     if (!sheetOpen) return;
     sheetOpen = false;
     if (state.p) { state.p = ''; writeHash(); }
+    fromRow = '';
     $('sheet').classList.remove('open'); $('scrim').classList.remove('open');
     document.body.classList.remove('locked');
     setTimeout(() => { if (!sheetOpen) $('sheet').hidden = $('scrim').hidden = true; }, 500);
@@ -822,27 +829,28 @@
     if (e.target.closest('.close')) return closeSheet();
     if (e.target.closest('[data-route]')) { state.route = state.p; state.view = 'map'; closeSheet(); render(); return window.scrollTo({ top: $('bar').offsetTop, behavior: 'smooth' }); }
     const as = e.target.closest('[data-addsaved]');
-    if (as) { const id = as.dataset.addsaved; if (!inTrip(id)) { trip = [...trip, { id, day: 0, time: '', end: '', memo: '' }]; saveTrip(); } draft = null; closeSheet(); render(); return toast('저장된 장소로 담았어요'); }
+    if (as) { addToTrip(as.dataset.addsaved); draft = null; closeSheet(); render(); return toast('저장된 장소로 담았어요'); }
     if (e.target.closest('[data-addcustom]') || e.target.closest('[data-savecustom]')) {
       const v = readForm();
       if (!v.name) return $('sheet').querySelector('[data-c=name]').focus();
       if (e.target.closest('[data-addcustom]')) {
         const { savedId, savedSure, savedDist, ...d } = draft || {}; const c = cleanCustom({ ...d, ...v });
-        trip = [...trip, { id: 'c' + Date.now().toString(36) + Math.random().toString(36).slice(2, 5), day: 0, time: '', end: '', memo: '', custom: c }];
+        trip = [...trip, { k: newKey(), id: 'c' + Date.now().toString(36) + Math.random().toString(36).slice(2, 5), day: 0, time: '', end: '', memo: '', custom: c }];
         draft = null; toast('내 여행에 담았어요');
       } else {
-        const x = trip.find((y) => y.id === state.p); if (x) x.custom = cleanCustom({ ...x.custom, ...v });
+        for (const x of trip.filter((y) => y.id === state.p)) x.custom = cleanCustom({ ...x.custom, ...v }); // 같은 장소를 여러 번 담았으면 모두 갱신
         toast('수정했어요');
       }
       saveTrip(); closeSheet(); return render();
     }
     if (e.target.closest('[data-copy]')) return copyShared(e.target.closest('[data-copy]').dataset.copy);
-    if (e.target.closest('[data-trip]')) {
-      const id = state.p, had = inTrip(id);
-      if (had && trip.find((x) => x.id === id).custom) { trip = trip.filter((x) => x.id !== id); saveTrip(); closeSheet(); toast('내 여행에서 뺐어요'); return render(); } // 직접 추가한 장소는 빼면 사라짐
-      trip = had ? trip.filter((x) => x.id !== id) : [...trip, { id, day: 0, time: '', end: '', memo: '' }];
-      saveTrip(); toast(had ? '내 여행에서 뺐어요' : '내 여행에 담았어요');
-      const b = e.target.closest('[data-trip]'); b.classList.toggle('on', !had); b.textContent = had ? '내 여행에 담기' : '✓ 내 여행에 담김 · 빼기';
+    if (e.target.closest('[data-untrip]')) { // 내 여행의 그 항목 하나만 뺌
+      trip = trip.filter((x) => x.k !== fromRow); fromRow = ''; saveTrip(); closeSheet(); toast('이 일정에서 뺐어요'); return render();
+    }
+    if (e.target.closest('[data-trip]')) { // 항상 추가 (같은 장소를 여러 번 담을 수 있음)
+      const p = findPlace(state.p);
+      addToTrip(state.p, p && p.custom ? { custom: { ...p, custom: undefined, id: undefined } } : {});
+      toast('내 여행에 담았어요'); e.target.closest('[data-trip]').textContent = '내 여행에 한 번 더 담기';
       if (state.view === 'trip') renderTrip();
       return;
     }
