@@ -471,8 +471,10 @@
     draft = c;
     showSheet(`<div class="grab"></div><button type="button" class="close" aria-label="닫기"><svg viewBox="0 0 24 24"><path d="M5 5l14 14M19 5 5 19"/></svg></button>
       <p class="kind">내 여행에 장소 추가</p><h2>${c.lat != null ? '이 정보로 담을까요?' : '장소 정보를 입력해 주세요'}</h2>
-      <p class="where">${esc(note)}</p>${customForm(c)}
-      <div class="actions"><button type="button" class="primary" data-addcustom>내 여행에 담기</button></div>`);
+      <p class="where">${esc(note)}</p>
+      ${c.savedId ? `<p class="savedhint">${c.savedSure ? `이미 저장된 장소 <b>${esc(findPlace(c.savedId).name)}</b>와 같은 곳으로 보여요.` : `바로 옆(${c.savedDist}m)에 저장된 장소 <b>${esc(findPlace(c.savedId).name)}</b>가 있어요. 같은 곳이라면`} 저장된 장소로 담으면 내 팁이 함께 보여요.</p>` : ''}
+      ${customForm(c)}
+      <div class="actions"><button type="button" class="primary" data-addcustom>${c.savedId ? '입력한 정보로 담기' : '내 여행에 담기'}</button>${c.savedId ? `<button type="button" data-addsaved="${esc(c.savedId)}" style="grid-column:1/-1">저장된 장소로 담기</button>` : ''}</div>`);
   };
   const addByLink = async (raw, btn) => {
     const url = (raw.match(/https?:\/\/\S+/) || [])[0];
@@ -483,11 +485,17 @@
       try { const j = await (await fetch(`${RESOLVER}?url=${encodeURIComponent(url)}`)).json(); if (!j.error && j.name) info = j; } catch {}
       btn.disabled = false; btn.textContent = '가져오기';
     }
-    if (info && info.lat != null) { // 이미 이 사이트에 있는 장소면 그걸 담음 (팁까지 보이도록)
-      const saved = PLACES.filter(hasSpot).find((p) => meters(p, { lat: +info.lat, lng: +info.lng }) < 40);
-      if (saved) { if (!inTrip(saved.id)) { trip = [...trip, { id: saved.id, day: 0, time: '', end: '', memo: '' }]; saveTrip(); } closeSheet(); render(); return toast(`“${saved.name}” — 저장된 장소로 담았어요`); }
+    // 이미 이 사이트에 있는 장소인지: 60m 안에 있고 이름의 앞부분이 겹쳐야 같은 곳으로 봄 (붙어 있는 다른 가게와 헷갈리지 않게). 자동으로 담지 않고 확인 창에서 고름
+    let saved = null;
+    if (info && info.lat != null) {
+      const norm = (s) => String(s || '').toLowerCase().replace(/[\s\u00b7\u30fb\-\u2010()\uff08\uff09\u300c\u300d\[\]]/g, '').replace(/\uc810$/, '');
+      const a = norm(info.name);
+      const near = PLACES.filter(hasSpot).map((p) => [meters(p, { lat: +info.lat, lng: +info.lng }), p]).filter(([d]) => d < 60).sort((x, y) => x[0] - y[0]);
+      const same = near.find(([, p]) => { const b = norm(p.name); return a && b && (a.includes(b.slice(0, 4)) || b.includes(a.slice(0, 4))); });
+      saved = same ? { p: same[1], sure: true } : near[0] ? { p: near[0][1], sure: false, d: Math.round(near[0][0]) } : null;
     }
     const c = guessCustom(info || {}, url);
+    if (saved) { c.savedId = saved.p.id; c.savedSure = saved.sure; c.savedDist = saved.d; }
     showDraft(c, info ? [c.category, c.address].filter(Boolean).join(' · ') || '이름과 종류를 확인해 주세요. 고칠 수 있어요.'
       : '이 링크에서는 정보를 자동으로 가져오지 못했어요. 이름과 종류를 직접 입력해 주세요. (위치를 몰라 동선 지도에는 표시되지 않아요)');
   };
@@ -776,11 +784,13 @@
   $('sheet').addEventListener('click', (e) => {
     if (e.target.closest('.close')) return closeSheet();
     if (e.target.closest('[data-route]')) { state.route = state.p; state.view = 'map'; closeSheet(); render(); return window.scrollTo({ top: $('bar').offsetTop, behavior: 'smooth' }); }
+    const as = e.target.closest('[data-addsaved]');
+    if (as) { const id = as.dataset.addsaved; if (!inTrip(id)) { trip = [...trip, { id, day: 0, time: '', end: '', memo: '' }]; saveTrip(); } draft = null; closeSheet(); render(); return toast('저장된 장소로 담았어요'); }
     if (e.target.closest('[data-addcustom]') || e.target.closest('[data-savecustom]')) {
       const v = readForm();
       if (!v.name) return $('sheet').querySelector('[data-c=name]').focus();
       if (e.target.closest('[data-addcustom]')) {
-        const c = cleanCustom({ ...draft, ...v });
+        const { savedId, savedSure, savedDist, ...d } = draft || {}; const c = cleanCustom({ ...d, ...v });
         trip = [...trip, { id: 'c' + Date.now().toString(36) + Math.random().toString(36).slice(2, 5), day: 0, time: '', end: '', memo: '', custom: c }];
         draft = null; toast('내 여행에 담았어요');
       } else {

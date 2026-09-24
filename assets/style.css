@@ -229,6 +229,8 @@ main { padding-top: 8px; padding-bottom: 40px; min-height: 60vh; }
 .spin { display: inline-block; width: 16px; height: 16px; margin-right: 8px; vertical-align: -3px; border-radius: 50%; border: 2.2px solid rgba(255, 255, 255, .35); border-top-color: #fff; animation: spin .7s linear infinite; }
 @keyframes spin { to { transform: rotate(360deg); } }
 .actions button:disabled { opacity: .75; cursor: default; }
+.savedhint { margin-top: 12px; padding: 10px 12px; border-radius: 10px; background: var(--accent-soft); font-size: 14px; line-height: 1.5; color: var(--text); }
+.savedhint b { font-weight: 700; }
 .flabel { display: block; margin-top: 12px; font-size: 13px; font-weight: 600; color: var(--text-2); }
 .field { display: block; width: 100%; height: 46px; margin-top: 6px; padding: 0 14px; border: 0; outline: 0; border-radius: 13px; background: var(--fill); color: var(--text); font: inherit; font-size: 16px; }
 .field:focus { box-shadow: 0 0 0 2px var(--accent); }
