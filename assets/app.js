@@ -222,12 +222,16 @@
       legend = Object.assign(document.createElement('div'), { className: 'legend' });
       legend.addEventListener('click', (e) => {
         const b = e.target.closest('button'); if (!b) return;
-        if (b.dataset.focus) { // 일차를 누르면 그 일차의 동선이 화면에 꽉 차게 이동
-          const r = shownRoutes.find((t) => t.id === b.dataset.focus); if (!r) return;
-          const bb = new maplibregl.LngLatBounds(); r.stops.forEach((s) => bb.extend([s.lng, s.lat]));
-          return map.fitBounds(bb, { padding: { top: 110, bottom: 64, left: 64, right: 64 }, maxZoom: 16, duration: 700 });
+        if (b.dataset.focus) { // 일차를 누르면 그 일차만 그림. 다른 일차를 누르면 그쪽으로, 같은 일차를 다시 누르면 전체
+          const id = b.dataset.focus;
+          pickedDay = pickedDay === id ? '' : id;
+          render();
+          const bb = new maplibregl.LngLatBounds();
+          for (const t of shownRoutes) t.stops.forEach((s) => bb.extend([s.lng, s.lat]));
+          if (!bb.isEmpty()) map.fitBounds(bb, { padding: { top: 110, bottom: 64, left: 64, right: 64 }, maxZoom: 16, duration: 600 });
+          return;
         }
-        if ('exitplan' in b.dataset) { state.plan = false; state.view = 'trip'; } // 동선 지도 → 내 여행 목록으로
+        if ('exitplan' in b.dataset) { state.plan = false; state.view = 'trip'; pickedDay = ''; } // 동선 지도 → 내 여행 목록으로
         else if ('exit' in b.dataset) state.route = ''; // 코스 단독 보기 끝내기
         else if (b.dataset.route) state.route = b.dataset.route; // 여러 코스 중 하나만 보기
         else state.type = state.type === b.dataset.type ? '' : b.dataset.type;
@@ -241,11 +245,12 @@
 
     // 범례는 종류 필터와 무관하게 이 지역에 있는 모든 종류를 보여주고, 누르면 그 종류만 남김
     // 코스는 투어만 볼 때(종류=투어) 또는 상세에서 "코스 지도로 보기"를 눌렀을 때만 그림 — 평소 지도가 선으로 어지럽지 않게
-    const routed = state.plan ? tripRoutes() : state.route ? PLACES.filter((p) => p.id === state.route && p.stops) : state.type === 'tour' ? items.filter((p) => p.stops) : [];
+    const allRoutes = state.plan ? tripRoutes() : [];
+    const routed = state.plan ? allRoutes.filter((t) => !pickedDay || t.id === pickedDay) : state.route ? PLACES.filter((p) => p.id === state.route && p.stops) : state.type === 'tour' ? items.filter((p) => p.stops) : [];
     shownRoutes = routed;
     items = state.route || state.plan ? [] : items.filter(hasSpot);
     const inScope = uniq(filtered('type').filter(hasSpot).map((p) => p.type));
-    if (state.plan) legend.innerHTML = `<button type="button" data-exitplan>${state.shared ? '공유받은 여행' : '내 여행'} ✕</button>` + routed.map((t) => `<button type="button" data-focus="${esc(t.id)}" style="--c:${t.color}"><i></i>${esc(t.name)}</button>`).join('');
+    if (state.plan) legend.innerHTML = `<button type="button" data-exitplan>${state.shared ? '공유받은 여행' : '내 여행'} ✕</button>` + allRoutes.map((t) => `<button type="button" data-focus="${esc(t.id)}" class="${pickedDay && t.id !== pickedDay ? 'dim' : ''}" style="--c:${t.color}"><i></i>${esc(t.name)}</button>`).join('');
     else if (routed.length && state.route) legend.innerHTML = `<button type="button" data-exit style="--c:${tourColor(routed[0])}"><i></i><span class="clip">${esc(routed[0].tags[0] || routed[0].name)}</span> ✕</button>`;
     else if (routed.length) legend.innerHTML = routed.map((t) => `<button type="button" data-route="${esc(t.id)}" style="--c:${tourColor(t)}"><i></i><span class="clip">${esc(t.tags[0] || t.name)}</span></button>`).join('');
     else legend.innerHTML = Object.keys(TYPES).filter((t) => inScope.includes(t)).map((t) =>
@@ -380,6 +385,7 @@
   // 일차 순(미정은 맨 뒤), 같은 일차 안에서는 담은 순서
   const tripDays = (list) => uniq(list.map((x) => x.day)).sort((a, b) => (a || 99) - (b || 99)).map((d) => [d, list.filter((x) => x.day === d)]);
   // 동선 지도용: 일차마다 코스 하나. 투어는 첫 번째 관광지 자리에 핀 하나로만 표시 (코스 전체를 그리면 내 동선과 헷갈림)
+  let pickedDay = ''; // 동선 지도에서 고른 일차 (하나). 비어 있으면 전체
   const tripRoutes = () => tripDays(curTrip()).map(([d, xs], i) => ({
     id: 'day' + d, name: dayLabel(d), tags: [dayLabel(d)], color: ROUTE_COLORS[i % ROUTE_COLORS.length],
     stops: xs.map(placeOf).filter((p) => p && !p.note).map((p) => {
