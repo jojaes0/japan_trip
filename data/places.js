@@ -6,6 +6,21 @@
 */
 window.PLACES = [
   {
+    "id": "19dk41uyba1ni",
+    "name": "요로시 화장당",
+    "city": "교토",
+    "area": "기요미즈",
+    "type": "shop",
+    "tags": [
+      "화장품"
+    ],
+    "tip": "핸드크림이 유명함",
+    "address": "",
+    "lat": 34.996496,
+    "lng": 135.78031,
+    "map": "https://www.google.com/maps?cid=5972549361938266590"
+  },
+  {
     "id": "13a5o0oyjeyyv",
     "name": "우메다 스카이 빌딩 공중정원 전망대",
     "city": "오사카",
@@ -331,21 +346,6 @@ window.PLACES = [
     "lat": 34.666077,
     "lng": 135.500855,
     "map": "https://www.google.com/maps?cid=14676548462984601208"
-  },
-  {
-    "id": "19dk41uyba1ni",
-    "name": "よろし化粧堂 清水坂店",
-    "city": "교토",
-    "area": "기요미즈",
-    "type": "shop",
-    "tags": [
-      "화장품"
-    ],
-    "tip": "요로시 화장당 핸드크림",
-    "address": "2 Chome-208-5 Kiyomizu, Higashiyama Ward, Kyoto, 605-0862",
-    "lat": 34.996556,
-    "lng": 135.780364,
-    "map": "https://www.google.com/maps?cid=5972549361938266590"
   },
   {
     "id": "15vc5pu95twl4",
@@ -895,4 +895,4 @@ window.PLACES = [
     "link": "https://pkgtour.naver.com/list?destination=JPOSA0078&includeCategories=TKPS%2CGDTR&productType=TKPS&departureDate=2026.10.01.%2C2026.10.24.&adultCnt=1&nxKeyword=%EC%9C%A0%EB%8B%88%EB%B2%84%EC%85%9C+%EC%8A%A4%ED%8A%9C%EB%94%94%EC%98%A4+%EC%9E%AC%ED%8C%AC+%EC%9E%85%EC%9E%A5%EA%B6%8C"
   }
 ];
-window.SYNCED = {"maps":"2026-09-24T06:07:43.245Z","sheet":"2026-09-24T06:07:43.617Z"};
+window.SYNCED = {"maps":"2026-09-24T10:42:10.188Z","sheet":"2026-09-24T10:42:10.682Z"};

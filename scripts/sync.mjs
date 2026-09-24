@@ -176,9 +176,11 @@ async function fetchTickets(sheetId, tab = '티켓') {
   }).filter(Boolean);
 }
 
-// 코멘트에서 #태그 / @지역 을 떼어내고 나머지를 팁으로
+// 코멘트에서 #태그 / @지역 을 떼어내고 나머지를 팁으로. 맨 앞의 [이름] 은 장소 이름을 바꿈 (구글맵 이름이 일본어일 때)
 function parseNote(note) {
   const tags = [], out = { tip: '' };
+  const nm = note.match(/^\s*\[([^\]\n]{1,80})\]\s*/);
+  if (nm && nm[1].trim()) { out.name = nm[1].trim(); note = note.slice(nm[0].length); }
   out.tip = note.replace(/(^|\s)([#@])([^\s#@]+)/g, (_, sp, mark, word) => {
     if (mark === '@') out.area = word.replace(/_/g, ' ');
     else if (word === '추천') out.pick = true; // 사이트에서 가장 눈에 띄게 표시
@@ -252,7 +254,7 @@ for (const r of raw.values()) {
   const area = (n.area && matchArea(n.area, city, [...areaBook, ...anchors])) || guess('지역', nearAnchor(r, AREA_RADIUS)?.area || inBook(r)?.area || '기타');
   const tags = n.tags || guess('태그', TAG_HINTS.filter(([, re]) => re.test(text)).map(([t]) => t));
 
-  places.push({ id: r.id, name: r.name, city, area, type, tags, tip: n.tip, address: r.address, lat: r.lat, lng: r.lng, map: r.map, ...(n.pick ? { pick: true } : {}) });
+  places.push({ id: r.id, name: n.name || r.name, city, area, type, tags, tip: n.tip, address: r.address, lat: r.lat, lng: r.lng, map: r.map, ...(n.pick ? { pick: true } : {}) });
   if (guessed.length && !prevIds.has(r.id)) review.push({ name: r.name, city, area, type, tags, guessed });
 }
 
