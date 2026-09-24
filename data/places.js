@@ -6,10 +6,40 @@
 */
 window.PLACES = [
   {
+    "id": "1tcn697rkqhib",
+    "name": "로바다야끼 카쿠레차야",
+    "city": "오사카",
+    "area": "난바·도톤보리",
+    "type": "food",
+    "tags": [
+      "로바다야키",
+      "이자카야",
+      "술 한잔"
+    ],
+    "tip": "바로 앞에서 구워주는 이자카야",
+    "address": "1 Chome-14-14 Higashishinsaibashi, Chuo Ward, Osaka, 542-0083",
+    "lat": 34.672828,
+    "lng": 135.503629,
+    "map": "https://www.google.com/maps?cid=8601638178873305891"
+  },
+  {
+    "id": "u2ffihq5u9st",
+    "name": "신파치 식당",
+    "city": "오사카",
+    "area": "난바·도톤보리",
+    "type": "food",
+    "tags": [],
+    "tip": "아침 생선 정식 맛집. 연어 구이에 다진 참치 회 추가하여 간장 뿌려 먹는 것을 추천",
+    "address": "1 Chome-5-15 Nipponbashi, Chuo Ward, Osaka, 542-0073",
+    "lat": 34.667535,
+    "lng": 135.506278,
+    "map": "https://www.google.com/maps?cid=3957530597288962589"
+  },
+  {
     "id": "19dk41uyba1ni",
     "name": "요로시 화장당",
     "city": "교토",
-    "area": "기요미즈",
+    "area": "청수사",
     "type": "shop",
     "tags": [
       "화장품"
@@ -58,19 +88,6 @@ window.PLACES = [
     "lat": 34.668422,
     "lng": 135.503224,
     "map": "https://www.google.com/maps?cid=5996734370962942050"
-  },
-  {
-    "id": "u2ffihq5u9st",
-    "name": "Shinpachi Shokudō Osaka Nipponbashi",
-    "city": "오사카",
-    "area": "난바·도톤보리",
-    "type": "food",
-    "tags": [],
-    "tip": "아침 생선 정식 맛집. 연어 구이에 다진 참치 회 추가하여 간장 뿌려 먹는 것을 추천",
-    "address": "1 Chome-5-15 Nipponbashi, Chuo Ward, Osaka, 542-0073",
-    "lat": 34.667535,
-    "lng": 135.506278,
-    "map": "https://www.google.com/maps?cid=3957530597288962589"
   },
   {
     "id": "1eedjunar95f4",
@@ -268,22 +285,6 @@ window.PLACES = [
     "lat": 34.670249,
     "lng": 135.504477,
     "map": "https://www.google.com/maps?cid=8412855512288809486"
-  },
-  {
-    "id": "1tcn697rkqhib",
-    "name": "炉ばた焼 かくれ茶屋",
-    "city": "오사카",
-    "area": "난바·도톤보리",
-    "type": "food",
-    "tags": [
-      "로바다야키",
-      "술 한잔"
-    ],
-    "tip": "난바 로바다야끼집 술먹기 최고",
-    "address": "1 Chome-14-14 Higashishinsaibashi, Chuo Ward, Osaka, 542-0083",
-    "lat": 34.672828,
-    "lng": 135.503629,
-    "map": "https://www.google.com/maps?cid=8601638178873305891"
   },
   {
     "id": "1g53n1c8b1blk",
@@ -895,4 +896,4 @@ window.PLACES = [
     "link": "https://pkgtour.naver.com/list?destination=JPOSA0078&includeCategories=TKPS%2CGDTR&productType=TKPS&departureDate=2026.10.01.%2C2026.10.24.&adultCnt=1&nxKeyword=%EC%9C%A0%EB%8B%88%EB%B2%84%EC%85%9C+%EC%8A%A4%ED%8A%9C%EB%94%94%EC%98%A4+%EC%9E%AC%ED%8C%AC+%EC%9E%85%EC%9E%A5%EA%B6%8C"
   }
 ];
-window.SYNCED = {"maps":"2026-09-24T10:42:26.037Z","sheet":"2026-09-24T10:42:26.312Z"};
+window.SYNCED = {"maps":"2026-09-24T10:44:51.220Z","sheet":"2026-09-24T10:44:51.498Z"};
