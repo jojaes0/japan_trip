@@ -896,4 +896,4 @@ window.PLACES = [
     "link": "https://pkgtour.naver.com/list?destination=JPOSA0078&includeCategories=TKPS%2CGDTR&productType=TKPS&departureDate=2026.10.01.%2C2026.10.24.&adultCnt=1&nxKeyword=%EC%9C%A0%EB%8B%88%EB%B2%84%EC%85%9C+%EC%8A%A4%ED%8A%9C%EB%94%94%EC%98%A4+%EC%9E%AC%ED%8C%AC+%EC%9E%85%EC%9E%A5%EA%B6%8C"
   }
 ];
-window.SYNCED = {"maps":"2026-10-03T13:19:38.726Z","sheet":"2026-10-03T13:19:39.444Z"};
+window.SYNCED = {"maps":"2026-10-03T17:35:30.807Z","sheet":"2026-10-03T17:35:31.662Z"};
