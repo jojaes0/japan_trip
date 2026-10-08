@@ -6,6 +6,22 @@
 */
 window.PLACES = [
   {
+    "id": "29j94tt21b402",
+    "name": "우즈라야",
+    "city": "교토",
+    "area": "가와라마치·시조",
+    "type": "food",
+    "tags": [
+      "야키토리",
+      "술 한잔"
+    ],
+    "tip": "야키토리 맛집",
+    "address": "〒605-0079 Kyoto, Higashiyama Ward, Tokiwacho, 二丁目177-1",
+    "lat": 35.004576,
+    "lng": 135.772455,
+    "map": "https://www.google.com/maps?cid=10731752681445057026"
+  },
+  {
     "id": "1tcn697rkqhib",
     "name": "로바다야끼 카쿠레차야",
     "city": "오사카",
@@ -896,4 +912,4 @@ window.PLACES = [
     "link": "https://pkgtour.naver.com/list?destination=JPOSA0078&includeCategories=TKPS%2CGDTR&productType=TKPS&departureDate=2026.10.01.%2C2026.10.24.&adultCnt=1&nxKeyword=%EC%9C%A0%EB%8B%88%EB%B2%84%EC%85%9C+%EC%8A%A4%ED%8A%9C%EB%94%94%EC%98%A4+%EC%9E%AC%ED%8C%AC+%EC%9E%85%EC%9E%A5%EA%B6%8C"
   }
 ];
-window.SYNCED = {"maps":"2026-10-08T14:54:25.302Z","sheet":"2026-10-08T14:54:26.072Z"};
+window.SYNCED = {"maps":"2026-10-08T20:40:15.214Z","sheet":"2026-10-08T20:40:15.589Z"};
