@@ -6,6 +6,34 @@
 */
 window.PLACES = [
   {
+    "id": "1yqzie73x62tr",
+    "name": "아리마 온천 금탕",
+    "city": "고베",
+    "area": "아리마온센",
+    "type": "food",
+    "tags": [
+      "온천"
+    ],
+    "tip": "당일치기 온천",
+    "address": "833 Arimacho, Kita Ward, Kobe, Hyogo 651-1401",
+    "lat": 34.796797,
+    "lng": 135.247886,
+    "map": "https://www.google.com/maps?cid=9312185879434948815"
+  },
+  {
+    "id": "1ke81ify1inoh",
+    "name": "Hankyu Highway Bus Osaka-Umeda Terminal",
+    "city": "오사카",
+    "area": "우메다",
+    "type": "food",
+    "tags": [],
+    "tip": "아리마온센 가는 고속 버스 예약 장소 (1~3번 창구)",
+    "address": "34°42'20. 135°29'55.0\"E, 4 Chome Nishitenma, Kita Ward, Osaka, 530-0047",
+    "lat": 34.705656,
+    "lng": 135.498597,
+    "map": "https://www.google.com/maps?cid=7422818379356184929"
+  },
+  {
     "id": "29j94tt21b402",
     "name": "우즈라야",
     "city": "교토",
@@ -912,4 +940,4 @@ window.PLACES = [
     "link": "https://pkgtour.naver.com/list?destination=JPOSA0078&includeCategories=TKPS%2CGDTR&productType=TKPS&departureDate=2026.10.01.%2C2026.10.24.&adultCnt=1&nxKeyword=%EC%9C%A0%EB%8B%88%EB%B2%84%EC%85%9C+%EC%8A%A4%ED%8A%9C%EB%94%94%EC%98%A4+%EC%9E%AC%ED%8C%AC+%EC%9E%85%EC%9E%A5%EA%B6%8C"
   }
 ];
-window.SYNCED = {"maps":"2026-10-22T23:57:52.073Z","sheet":"2026-10-22T23:57:52.606Z"};
+window.SYNCED = {"maps":"2026-10-23T04:39:56.419Z","sheet":"2026-10-23T04:39:57.389Z"};
