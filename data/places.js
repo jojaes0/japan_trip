@@ -6,6 +6,34 @@
 */
 window.PLACES = [
   {
+    "id": "3eb901bn08gzk",
+    "name": "Fish House Cafe",
+    "city": "고베",
+    "area": "아리마온센",
+    "type": "cafe",
+    "tags": [
+      "카페"
+    ],
+    "tip": "시바견 카페",
+    "address": "〒651-1401 Hyogo, Kobe, Kita Ward, Arimacho, 字有馬827番地",
+    "lat": 34.796694,
+    "lng": 135.248128,
+    "map": "https://www.google.com/maps?cid=16098979754907186176"
+  },
+  {
+    "id": "1n1njemrw0dtj",
+    "name": "Ikkyu",
+    "city": "고베",
+    "area": "아리마온센",
+    "type": "food",
+    "tags": [],
+    "tip": "",
+    "address": "1196 Arimacho, Kita Ward, Kobe, Hyogo 651-1401",
+    "lat": 34.796776,
+    "lng": 135.248416,
+    "map": "https://www.google.com/maps?cid=7771727311899300343"
+  },
+  {
     "id": "1yqzie73x62tr",
     "name": "아리마 온천 금탕",
     "city": "고베",
@@ -940,4 +968,4 @@ window.PLACES = [
     "link": "https://pkgtour.naver.com/list?destination=JPOSA0078&includeCategories=TKPS%2CGDTR&productType=TKPS&departureDate=2026.10.01.%2C2026.10.24.&adultCnt=1&nxKeyword=%EC%9C%A0%EB%8B%88%EB%B2%84%EC%85%9C+%EC%8A%A4%ED%8A%9C%EB%94%94%EC%98%A4+%EC%9E%AC%ED%8C%AC+%EC%9E%85%EC%9E%A5%EA%B6%8C"
   }
 ];
-window.SYNCED = {"maps":"2026-10-23T04:39:56.419Z","sheet":"2026-10-23T04:39:57.389Z"};
+window.SYNCED = {"maps":"2026-10-23T09:59:13.365Z","sheet":"2026-10-23T09:59:13.824Z"};
